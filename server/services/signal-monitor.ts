@@ -31,23 +31,27 @@ export class SignalMonitor {
         const [channelId, assetSymbol, uuid] = key.split(':');
         const channelIdNum = parseInt(channelId);
 
-        // Calculate performance
+        // Calculate performance using Binance futures formula
         const entryPrice = parseFloat(signalData.entry_price);
         const targetPrice = parseFloat(signalData.target_price);
         const stopLossPrice = parseFloat(signalData.stop_loss_price);
+        const leverage = parseFloat(signalData.leverage) || 1; // Default to 1x if no leverage
 
         let newStatus = signalData.status;
         let performance = 0;
 
+        // Binance futures performance calculation: PnL% = ((Price_Change / Entry_Price) × Leverage × 100%)
         if (signalData.signal_type === 'BUY' || signalData.signal_type === 'LONG') {
-          performance = ((currentPrice - entryPrice) / entryPrice) * 100;
+          // LONG: PnL% = ((Current_Price - Entry_Price) / Entry_Price) × Leverage × 100%
+          performance = ((currentPrice - entryPrice) / entryPrice) * leverage * 100;
           if (currentPrice >= targetPrice) {
             newStatus = 'tp_hit';
           } else if (currentPrice <= stopLossPrice) {
             newStatus = 'sl_hit';
           }
         } else if (signalData.signal_type === 'SELL' || signalData.signal_type === 'SHORT') {
-          performance = ((entryPrice - currentPrice) / entryPrice) * 100;
+          // SHORT: PnL% = ((Entry_Price - Current_Price) / Entry_Price) × Leverage × 100%
+          performance = ((entryPrice - currentPrice) / entryPrice) * leverage * 100;
           if (currentPrice <= targetPrice) {
             newStatus = 'tp_hit';
           } else if (currentPrice >= stopLossPrice) {
@@ -66,10 +70,18 @@ export class SignalMonitor {
 
         // Update status if changed
         if (newStatus !== signalData.status) {
-          await this.storage.updateTradeSignalStatus(uuid, newStatus);
-          
+          // If signal is being closed (not active anymore), set closure fields
           if (newStatus !== 'active') {
+            await this.storage.updateTradeSignal(uuid, {
+              status: newStatus,
+              closedAt: new Date(),
+              executionPrice: currentPrice,
+              updatedAt: new Date()
+            });
             await this.redisClient.deleteSignal(key);
+          } else {
+            // Just update status if still active
+            await this.storage.updateTradeSignalStatus(uuid, newStatus);
           }
         }
 
