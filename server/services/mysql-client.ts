@@ -23,28 +23,30 @@ export class MySQLClient implements IStorage {
   async createTradeSignal(signal: InsertTradeSignal): Promise<TradeSignal> {
     const connection = await this.pool.getConnection();
     await connection.beginTransaction();
-    
+
     try {
       // First check if signal already exists
       const [existing] = await connection.execute(
         'SELECT uuid FROM trade_signals WHERE uuid = ?',
         [signal.uuid]
       );
-      
+
       if (Array.isArray(existing) && existing.length > 0) {
         console.log(`Trade signal ${signal.uuid} already exists, skipping creation`);
         await connection.rollback();
         return signal as TradeSignal;
       }
 
-      // Insert new signal with all fields from updated schema
+      // Insert new signal with all fields from updated schema including ID from Kafka
+      // Keep created_at as ISO string (VARCHAR field stores it directly)
       const [result] = await connection.execute(
         `INSERT INTO trade_signals 
-         (uuid, trader_id, channel_id, channel_uuid, visibility, signal_type, asset_symbol, 
+         (id, uuid, trader_id, channel_id, channel_uuid, visibility, signal_type, asset_symbol, 
           leverage, entry_price, target_price, stop_loss_price, trade_price, ttl, 
           performance_rating, created_at, status) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
+          signal.id,           // Add ID from Kafka data
           signal.uuid,
           signal.trader_id,
           signal.channel_id,
@@ -59,15 +61,15 @@ export class MySQLClient implements IStorage {
           signal.trade_price || null,
           signal.ttl || '24h',
           signal.performance_rating || null,
-          signal.created_at,
+          signal.created_at,  // Keep as ISO string
           signal.status
         ]
       );
-      
+
       await connection.commit();
       console.log(`✅ Trade signal ${signal.uuid} successfully created in database`);
       return signal as TradeSignal;
-      
+
     } catch (error) {
       await connection.rollback();
       console.error(`❌ Failed to create trade signal ${signal.uuid}:`, error);
@@ -96,7 +98,7 @@ export class MySQLClient implements IStorage {
     try {
       const setClause = Object.keys(updates).map(key => `${key} = ?`).join(', ');
       const values = Object.values(updates);
-      
+
       await connection.execute(
         `UPDATE trade_signals SET ${setClause} WHERE uuid = ?`,
         [...values, uuid]
@@ -110,7 +112,7 @@ export class MySQLClient implements IStorage {
     const connection = await this.pool.getConnection();
     try {
       await connection.execute(
-        'UPDATE trade_signals SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE uuid = ?',
+        'UPDATE trade_signals SET status = ?, updatedAt = CURRENT_TIMESTAMP WHERE uuid = ?',
         [status, uuid]
       );
     } finally {
