@@ -201,6 +201,7 @@ export class KafkaConsumer {
       const ttlSeconds = hours * 3600;
 
       if (this.redisClient) {
+        // Store only essential data needed for monitoring against market data
         await this.redisClient.setSignal(redisKey, {
           signal_type: data.signal_type,
           entry_price: data.entry_price,
@@ -209,8 +210,6 @@ export class KafkaConsumer {
           leverage: data.leverage,
           ttl: data.ttl,
           created_at: data.created_at,
-          channel_uuid: data.channel_uuid,
-          trader_id: data.trader_id,
           status: 'active'
         }, ttlSeconds);
       }
