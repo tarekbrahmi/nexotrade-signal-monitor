@@ -1,5 +1,6 @@
 import { Kafka, Producer } from "kafkajs";
 import { SignalClosedEvent } from "@shared/schema";
+import { logger } from "./logger";
 
 const KAFKA_TOPICS = {
   TRADE_SIGNAL_EVENTS: "TRADE_SIGNAL_EVENTS",
@@ -26,7 +27,7 @@ export class KafkaProducer {
   async connect(): Promise<void> {
     try {
       if (this.isConnected) {
-        console.log("Kafka producer already connected");
+        logger.info("Kafka producer already connected");
         return;
       }
 
@@ -39,9 +40,9 @@ export class KafkaProducer {
       await this.producer.connect();
       this.isConnected = true;
 
-      console.log("✓ Kafka producer connected successfully");
+      logger.info("Kafka producer connected successfully");
     } catch (error) {
-      console.error("Failed to connect Kafka producer:", error);
+      logger.error("Failed to connect Kafka producer:", error);
       throw error;
     }
   }
@@ -51,10 +52,10 @@ export class KafkaProducer {
       if (this.producer && this.isConnected) {
         await this.producer.disconnect();
         this.isConnected = false;
-        console.log("✓ Kafka producer disconnected");
+        logger.info("Kafka producer disconnected");
       }
     } catch (error) {
-      console.error("Failed to disconnect Kafka producer:", error);
+      logger.error("Failed to disconnect Kafka producer:", error);
     }
   }
 
@@ -104,11 +105,11 @@ export class KafkaProducer {
 
       await this.producer.send(message);
 
-      console.log(
-        `✓ Published SIGNAL_CLOSED event for signal ${eventData.uuid} with status ${eventData.status}`,
+      logger.info(
+        `Published SIGNAL_CLOSED event for signal ${eventData.uuid} with status ${eventData.status}`,
       );
     } catch (error) {
-      console.error("Failed to publish SIGNAL_CLOSED event:", error);
+      logger.error("Failed to publish SIGNAL_CLOSED event:", error);
       throw error;
     }
   }

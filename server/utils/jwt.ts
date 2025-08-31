@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
+import { logger } from "../services/logger";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET || "any";
 
 export interface JWTPayload {
   userId: string;
@@ -18,7 +19,7 @@ export async function verifyJWT(token: string): Promise<JWTPayload | null> {
     const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
     return decoded;
   } catch (error) {
-    console.error("JWT verification failed:", error);
+    logger.error("JWT verification failed:", error);
     return null;
   }
 }

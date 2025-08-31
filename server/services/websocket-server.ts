@@ -7,6 +7,7 @@ import {
 } from "@shared/schema";
 import { verifyJWT } from "../utils/jwt";
 import { SignalMonitor } from "./signal-monitor";
+import { logger } from "./logger";
 
 interface ConnectedTrader {
   id: string;
@@ -36,7 +37,7 @@ export class WebSocketServer {
 
   private setupEventHandlers(): void {
     this.io.on("connection", (socket) => {
-      console.log("New WebSocket connection:", socket.id);
+      logger.info("New WebSocket connection:", socket.id);
 
       socket.on("authenticate", async (data) => {
         try {
@@ -60,7 +61,7 @@ export class WebSocketServer {
               .add(socket.id);
 
             socket.emit("authenticated", { success: true });
-            console.log(
+            logger.info(
               `Trader authenticated for channel ${connectionData.channel_id}`,
             );
           } else {
@@ -70,7 +71,7 @@ export class WebSocketServer {
             socket.disconnect();
           }
         } catch (error) {
-          console.error("Authentication error:", error);
+          logger.error("Authentication error:", error);
           socket.emit("authentication_failed", {
             error: "Authentication failed",
           });
@@ -93,7 +94,7 @@ export class WebSocketServer {
             }
           }
         }
-        console.log("WebSocket disconnected:", socket.id);
+        logger.info("WebSocket disconnected:", socket.id);
       });
     });
   }

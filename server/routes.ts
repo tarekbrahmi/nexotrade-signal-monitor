@@ -1,12 +1,11 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { MySQLClient } from "./services/mysql-client";
-import { WebSocketServer } from "./services/websocket-server";
 import { KafkaConsumer } from "./services/kafka-consumer";
 import { MarketDataClient } from "./services/market-data-client";
-import { SignalMonitor } from "./services/signal-monitor";
+import { MySQLClient } from "./services/mysql-client";
 import { RedisClient } from "./services/redis-client";
-import { signJWT } from "./utils/jwt";
+import { SignalMonitor } from "./services/signal-monitor";
+import { WebSocketServer } from "./services/websocket-server";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);

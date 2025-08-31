@@ -1,6 +1,7 @@
 import mysql from "mysql2/promise";
 import { TradeSignal, InsertTradeSignal } from "@shared/schema";
 import { IStorage } from "../storage";
+import { logger } from "./logger";
 
 export class MySQLClient implements IStorage {
   private pool: mysql.Pool;
@@ -32,7 +33,7 @@ export class MySQLClient implements IStorage {
       );
 
       if (Array.isArray(existing) && existing.length > 0) {
-        console.log(
+        logger.info(
           `Trade signal ${signal.uuid} already exists, skipping creation`,
         );
         await connection.rollback();
@@ -69,13 +70,13 @@ export class MySQLClient implements IStorage {
       );
 
       await connection.commit();
-      console.log(
-        `✅ Trade signal ${signal.uuid} successfully created in database`,
+      logger.info(
+        `Trade signal ${signal.uuid} successfully created in database`,
       );
       return signal as TradeSignal;
     } catch (error) {
       await connection.rollback();
-      console.error(`❌ Failed to create trade signal ${signal.uuid}:`, error);
+      logger.error(`Failed to create trade signal ${signal.uuid}:`, error);
       throw error;
     } finally {
       connection.release();

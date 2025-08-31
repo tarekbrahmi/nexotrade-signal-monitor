@@ -1,6 +1,6 @@
 import { io, Socket } from "socket.io-client";
-import { MarketDataUpdate, marketDataUpdateSchema } from "@shared/schema";
 import { SignalMonitor } from "./signal-monitor";
+import { logger } from "./logger";
 
 export class MarketDataClient {
   private socket: Socket | null = null;
@@ -51,7 +51,7 @@ export class MarketDataClient {
         }
       });
     } catch (error) {
-      console.error("Failed to connect to market data WebSocket:", error);
+      logger.error("Failed to connect to market data WebSocket:", error);
       throw error;
     }
   }
@@ -62,11 +62,10 @@ export class MarketDataClient {
     try {
       // The data comes as an object with properties: s, c, P, h, l, q, t
       if (data && data.s && data.c) {
-        // console.log(`Price update: ${data.s} = ${data.c}`);
         this.signalMonitor.onPriceUpdate(data.s, parseFloat(data.c));
       }
     } catch (error) {
-      console.error("Error processing price update:", error);
+      logger.error("Error processing price update:", error);
     }
   }
 

@@ -1,4 +1,5 @@
 import { createClient, RedisClientType } from "redis";
+import { logger } from "./logger";
 
 export class RedisClient {
   private client: RedisClientType | null = null;
@@ -99,7 +100,7 @@ export class RedisClient {
     try {
       await this.client.setEx(key, ttlSeconds, JSON.stringify(value));
     } catch (error: any) {
-      console.warn("Failed to set Redis key, using fallback:", error.message);
+      logger.warn("Failed to set Redis key, using fallback:", error.message);
       this.fallbackStorage.set(key, {
         value,
         expires: Date.now() + ttlSeconds * 1000,
@@ -123,10 +124,7 @@ export class RedisClient {
       const value = await this.client.get(key);
       return value ? JSON.parse(value) : null;
     } catch (error: any) {
-      console.warn(
-        "Failed to get Redis key, checking fallback:",
-        error.message,
-      );
+      logger.warn("Failed to get Redis key, checking fallback:", error.message);
       const item = this.fallbackStorage.get(key);
       if (item && item.expires > Date.now()) {
         return item.value;
@@ -145,7 +143,7 @@ export class RedisClient {
       await this.client.del(key);
       this.fallbackStorage.delete(key); // Also remove from fallback
     } catch (error: any) {
-      console.warn("Failed to delete Redis key:", error.message);
+      logger.warn("Failed to delete Redis key:", error.message);
       this.fallbackStorage.delete(key);
     }
   }
@@ -161,7 +159,7 @@ export class RedisClient {
     try {
       return await this.client.keys(pattern);
     } catch (error: any) {
-      console.warn("Failed to get Redis keys by pattern:", error.message);
+      logger.warn("Failed to get Redis keys by pattern:", error.message);
       const keys = Array.from(this.fallbackStorage.keys());
       const regex = new RegExp(pattern.replace(/\*/g, ".*"));
       return keys.filter((key) => regex.test(key));
@@ -179,7 +177,7 @@ export class RedisClient {
       const usedMemoryMatch = info.match(/used_memory_human:(.+)/);
       return usedMemoryMatch ? usedMemoryMatch[1].trim() : "0B";
     } catch (error: any) {
-      console.warn("Failed to get Redis memory usage:", error.message);
+      logger.warn("Failed to get Redis memory usage:", error.message);
       const itemCount = this.fallbackStorage.size;
       return `Fallback: ${itemCount} items`;
     }
