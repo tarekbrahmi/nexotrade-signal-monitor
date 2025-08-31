@@ -32,9 +32,9 @@ CREATE TABLE IF NOT EXISTS trade_signals (
   performance_rating INT DEFAULT 0,                     -- Performance rating as integer (required)
   created_at VARCHAR(255) NOT NULL,                     -- ISO date string from Kafka (required)
   status ENUM('active', 'sl_hit', 'tp_hit', 'expired') DEFAULT 'active', -- Internal status tracking
-  closedAt TIMESTAMP NULL,                              -- Internal close timestamp
-  executionPrice DECIMAL(20, 8) NULL,                   -- Internal execution price
-  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, -- Internal update timestamp
+  closed_at TIMESTAMP NULL,                              -- Internal close timestamp
+  execution_price DECIMAL(20, 8) NULL,                   -- Internal execution price
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, -- Internal update timestamp
   
   -- Simple Performance Metrics (no historical data dependency)
   risk_reward_ratio DECIMAL(10, 4) NULL,                -- TP distance / SL distance ratio

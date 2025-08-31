@@ -103,7 +103,7 @@ async function testWebSocketConnection() {
     console.log("JWT token ready");
 
     // Test with channel ID 46
-    const channelId = 48;
+    const channelId = 47;
     console.log(`Testing connection with channel ${channelId}...`);
 
     // Connect and authenticate
