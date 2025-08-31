@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "SIGNAL_CREATED Event Schema",
+  "description": "Schema for trade signal creation events",
+  "properties": {
+    "version": {
+      "type": "string",
+      "enum": ["1.0.0"]
+    },
+    "eventType": {
+      "type": "string",
+      "enum": ["SIGNAL_CREATED"]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "channel_id": {
+          "type": "integer"
+        },
+        "message_id": {
+          "type": "integer"
+        },
+        "visibility": {
+          "type": "string"
+        },
+        "signal_type": {
+          "type": "string",
+          "enum": ["buy", "sell"]
+        },
+        "asset_symbol": {
+          "type": "string"
+        },
+        "entry_price": {
+          "type": "string"
+        },
+        "target_price": {
+          "type": "string"
+        },
+        "stop_loss_price": {
+          "type": "string"
+        },
+        "trade_price": {
+          "type": "string"
+        },
+        "performance_rating": {
+          "type": "string"
+        },
+        "ttl": {
+          "type": "string"
+        },
+        "leverage": {
+          "type": "integer"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "uuid",
+        "channel_id",
+        "signal_type",
+        "asset_symbol",
+        "entry_price",
+        "target_price",
+        "stop_loss_price",
+        "leverage",
+        "created_at"
+      ]
+    }
+  },
+  "required": ["version", "eventType", "timestamp", "data"]
+}
