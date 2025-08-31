@@ -6,8 +6,6 @@ export class RedisClient {
   private connected = false;
   private host: string;
   private port: number;
-  private fallbackStorage = new Map();
-  private usingFallback = false;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 3;
 
@@ -39,13 +37,13 @@ export class RedisClient {
     });
 
     this.client.on("error", (err) => {
-      this.connected = false;
-      this.enableFallback();
+      logger.error("Redis connection error:", err.message);
+      logger.error("Application cannot continue without Redis. Exiting...");
+      process.exit(1);
     });
 
     this.client.on("connect", () => {
       this.connected = true;
-      this.usingFallback = false;
       this.reconnectAttempts = 0;
     });
 
@@ -58,22 +56,21 @@ export class RedisClient {
     this.createClient();
 
     if (!this.client) {
-      throw new Error("Failed to create Redis client");
+      logger.error(
+        "Failed to create Redis client. Application cannot continue without Redis. Exiting...",
+      );
+      process.exit(1);
     }
 
     try {
       await this.client.connect();
       this.connected = true;
-      this.usingFallback = false;
-    } catch (error: any) {
-      this.connected = false;
-      this.enableFallback();
-      // Don't throw error, use fallback instead
+      logger.info("Successfully connected to Redis");
+    } catch (error) {
+      logger.error("Failed to connect to Redis:", (error as Error).message);
+      logger.error("Application cannot continue without Redis. Exiting...");
+      process.exit(1);
     }
-  }
-
-  private enableFallback(): void {
-    this.usingFallback = true;
   }
 
   async disconnect(): Promise<void> {
@@ -88,98 +85,81 @@ export class RedisClient {
   }
 
   async setSignal(key: string, value: any, ttlSeconds: number): Promise<void> {
-    if (this.usingFallback || !this.client || !this.connected) {
-      // Use fallback storage with TTL simulation
-      this.fallbackStorage.set(key, {
-        value,
-        expires: Date.now() + ttlSeconds * 1000,
-      });
-      return;
+    if (!this.client || !this.connected) {
+      logger.error("Redis client not connected. Cannot set signal.");
+      throw new Error("Redis connection required");
     }
 
     try {
       await this.client.setEx(key, ttlSeconds, JSON.stringify(value));
-    } catch (error: any) {
-      logger.warn("Failed to set Redis key, using fallback:", error.message);
-      this.fallbackStorage.set(key, {
-        value,
-        expires: Date.now() + ttlSeconds * 1000,
-      });
+    } catch (error) {
+      logger.error("Failed to set Redis key:", (error as Error).message);
+      throw error;
     }
   }
 
   async getSignal(key: string): Promise<any | null> {
-    if (this.usingFallback || !this.client || !this.connected) {
-      const item = this.fallbackStorage.get(key);
-      if (item && item.expires > Date.now()) {
-        return item.value;
-      }
-      if (item) {
-        this.fallbackStorage.delete(key); // Remove expired
-      }
-      return null;
+    if (!this.client || !this.connected) {
+      logger.error("Redis client not connected. Cannot get signal.");
+      throw new Error("Redis connection required");
     }
 
     try {
       const value = await this.client.get(key);
       return value ? JSON.parse(value) : null;
-    } catch (error: any) {
-      logger.warn("Failed to get Redis key, checking fallback:", error.message);
-      const item = this.fallbackStorage.get(key);
-      if (item && item.expires > Date.now()) {
-        return item.value;
-      }
-      return null;
+    } catch (error) {
+      logger.error("Failed to get Redis key:", (error as Error).message);
+      throw error;
     }
   }
 
   async deleteSignal(key: string): Promise<void> {
-    if (this.usingFallback || !this.client || !this.connected) {
-      this.fallbackStorage.delete(key);
-      return;
+    if (!this.client || !this.connected) {
+      logger.error("Redis client not connected. Cannot delete signal.");
+      throw new Error("Redis connection required");
     }
 
     try {
       await this.client.del(key);
-      this.fallbackStorage.delete(key); // Also remove from fallback
-    } catch (error: any) {
-      logger.warn("Failed to delete Redis key:", error.message);
-      this.fallbackStorage.delete(key);
+    } catch (error) {
+      logger.error("Failed to delete Redis key:", (error as Error).message);
+      throw error;
     }
   }
 
   async getKeysByPattern(pattern: string): Promise<string[]> {
-    if (this.usingFallback || !this.client || !this.connected) {
-      // Simple pattern matching for fallback
-      const keys = Array.from(this.fallbackStorage.keys());
-      const regex = new RegExp(pattern.replace(/\*/g, ".*"));
-      return keys.filter((key) => regex.test(key));
+    if (!this.client || !this.connected) {
+      logger.error("Redis client not connected. Cannot get keys by pattern.");
+      throw new Error("Redis connection required");
     }
 
     try {
       return await this.client.keys(pattern);
-    } catch (error: any) {
-      logger.warn("Failed to get Redis keys by pattern:", error.message);
-      const keys = Array.from(this.fallbackStorage.keys());
-      const regex = new RegExp(pattern.replace(/\*/g, ".*"));
-      return keys.filter((key) => regex.test(key));
+    } catch (error) {
+      logger.error(
+        "Failed to get Redis keys by pattern:",
+        (error as Error).message,
+      );
+      throw error;
     }
   }
 
   async getMemoryUsage(): Promise<string> {
-    if (this.usingFallback || !this.client || !this.connected) {
-      const itemCount = this.fallbackStorage.size;
-      return `Fallback: ${itemCount} items`;
+    if (!this.client || !this.connected) {
+      logger.error("Redis client not connected. Cannot get memory usage.");
+      throw new Error("Redis connection required");
     }
 
     try {
       const info = await this.client.info("memory");
       const usedMemoryMatch = info.match(/used_memory_human:(.+)/);
       return usedMemoryMatch ? usedMemoryMatch[1].trim() : "0B";
-    } catch (error: any) {
-      logger.warn("Failed to get Redis memory usage:", error.message);
-      const itemCount = this.fallbackStorage.size;
-      return `Fallback: ${itemCount} items`;
+    } catch (error) {
+      logger.error(
+        "Failed to get Redis memory usage:",
+        (error as Error).message,
+      );
+      throw error;
     }
   }
 }
