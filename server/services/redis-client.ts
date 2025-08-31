@@ -1,4 +1,4 @@
-import { createClient, RedisClientType } from 'redis';
+import { createClient, RedisClientType } from "redis";
 
 export class RedisClient {
   private client: RedisClientType | null = null;
@@ -10,15 +10,20 @@ export class RedisClient {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 3;
 
-  constructor(host = 'localhost', port = 6379, db = 0, password: string | null = null) {
+  constructor(
+    host = "localhost",
+    port = 6379,
+    db = 0,
+    password: string | null = null,
+  ) {
     this.host = host;
     this.port = port;
   }
 
   private createClient() {
     if (this.client) return;
-    
-    this.client = createClient({ 
+
+    this.client = createClient({
       socket: {
         host: this.host,
         port: this.port,
@@ -28,31 +33,31 @@ export class RedisClient {
             return Math.min(retries * 1000, 3000);
           }
           return false;
-        }
-      }
+        },
+      },
     });
-    
-    this.client.on('error', (err) => {
+
+    this.client.on("error", (err) => {
       this.connected = false;
       this.enableFallback();
     });
 
-    this.client.on('connect', () => {
+    this.client.on("connect", () => {
       this.connected = true;
       this.usingFallback = false;
       this.reconnectAttempts = 0;
     });
 
-    this.client.on('disconnect', () => {
+    this.client.on("disconnect", () => {
       this.connected = false;
     });
   }
 
   async connect(): Promise<void> {
     this.createClient();
-    
+
     if (!this.client) {
-      throw new Error('Failed to create Redis client');
+      throw new Error("Failed to create Redis client");
     }
 
     try {
@@ -84,15 +89,21 @@ export class RedisClient {
   async setSignal(key: string, value: any, ttlSeconds: number): Promise<void> {
     if (this.usingFallback || !this.client || !this.connected) {
       // Use fallback storage with TTL simulation
-      this.fallbackStorage.set(key, { value, expires: Date.now() + (ttlSeconds * 1000) });
+      this.fallbackStorage.set(key, {
+        value,
+        expires: Date.now() + ttlSeconds * 1000,
+      });
       return;
     }
 
     try {
       await this.client.setEx(key, ttlSeconds, JSON.stringify(value));
     } catch (error: any) {
-      console.warn('Failed to set Redis key, using fallback:', error.message);
-      this.fallbackStorage.set(key, { value, expires: Date.now() + (ttlSeconds * 1000) });
+      console.warn("Failed to set Redis key, using fallback:", error.message);
+      this.fallbackStorage.set(key, {
+        value,
+        expires: Date.now() + ttlSeconds * 1000,
+      });
     }
   }
 
@@ -112,7 +123,10 @@ export class RedisClient {
       const value = await this.client.get(key);
       return value ? JSON.parse(value) : null;
     } catch (error: any) {
-      console.warn('Failed to get Redis key, checking fallback:', error.message);
+      console.warn(
+        "Failed to get Redis key, checking fallback:",
+        error.message,
+      );
       const item = this.fallbackStorage.get(key);
       if (item && item.expires > Date.now()) {
         return item.value;
@@ -131,7 +145,7 @@ export class RedisClient {
       await this.client.del(key);
       this.fallbackStorage.delete(key); // Also remove from fallback
     } catch (error: any) {
-      console.warn('Failed to delete Redis key:', error.message);
+      console.warn("Failed to delete Redis key:", error.message);
       this.fallbackStorage.delete(key);
     }
   }
@@ -140,17 +154,17 @@ export class RedisClient {
     if (this.usingFallback || !this.client || !this.connected) {
       // Simple pattern matching for fallback
       const keys = Array.from(this.fallbackStorage.keys());
-      const regex = new RegExp(pattern.replace(/\*/g, '.*'));
-      return keys.filter(key => regex.test(key));
+      const regex = new RegExp(pattern.replace(/\*/g, ".*"));
+      return keys.filter((key) => regex.test(key));
     }
 
     try {
       return await this.client.keys(pattern);
     } catch (error: any) {
-      console.warn('Failed to get Redis keys by pattern:', error.message);
+      console.warn("Failed to get Redis keys by pattern:", error.message);
       const keys = Array.from(this.fallbackStorage.keys());
-      const regex = new RegExp(pattern.replace(/\*/g, '.*'));
-      return keys.filter(key => regex.test(key));
+      const regex = new RegExp(pattern.replace(/\*/g, ".*"));
+      return keys.filter((key) => regex.test(key));
     }
   }
 
@@ -161,11 +175,11 @@ export class RedisClient {
     }
 
     try {
-      const info = await this.client.info('memory');
+      const info = await this.client.info("memory");
       const usedMemoryMatch = info.match(/used_memory_human:(.+)/);
-      return usedMemoryMatch ? usedMemoryMatch[1].trim() : '0B';
+      return usedMemoryMatch ? usedMemoryMatch[1].trim() : "0B";
     } catch (error: any) {
-      console.warn('Failed to get Redis memory usage:', error.message);
+      console.warn("Failed to get Redis memory usage:", error.message);
       const itemCount = this.fallbackStorage.size;
       return `Fallback: ${itemCount} items`;
     }

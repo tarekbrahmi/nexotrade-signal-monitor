@@ -13,7 +13,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Initialize MySQL client
   const mysqlClient = new MySQLClient();
-  
+
   // Initialize Redis client
   const redisClient = new RedisClient();
   await redisClient.connect();
@@ -37,7 +37,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const activeSignals = await mysqlClient.getActiveTradeSignals();
       const activeConnections = wsServer.getConnectionCount();
-      
+
       res.json({
         activeConnections,
         activeSignals: activeSignals.length,
@@ -53,9 +53,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const signals = await mysqlClient.getActiveTradeSignals();
       const recentSignals = signals
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        )
         .slice(0, 10);
-      
+
       res.json(recentSignals);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch recent signals" });
@@ -69,28 +72,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name: "Market Data WebSocket",
           host: "nexotrade.net",
           status: marketDataClient.isConnected() ? "connected" : "disconnected",
-          type: "websocket"
+          type: "websocket",
         },
         {
           name: "Kafka Event Bus",
           host: "SIGNAL_CREATED topic",
           status: kafkaConsumer.isConnected() ? "subscribed" : "disconnected",
-          type: "kafka"
+          type: "kafka",
         },
         {
           name: "Redis Cache",
           host: "Signal monitoring store",
           status: redisClient.isConnected() ? "online" : "offline",
-          type: "redis"
+          type: "redis",
         },
         {
           name: "MySQL Database",
           host: "Signal persistence",
           status: "connected", // Using MySQL storage
-          type: "mysql"
-        }
+          type: "mysql",
+        },
       ];
-      
+
       res.json(connections);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch connection status" });
@@ -109,12 +112,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/dashboard/config", async (req, res) => {
     try {
       const config = {
-        marketDataWebsocketUrl: process.env.MARKET_DATA_WEBSOCKET_URL || "ws://www.demo.nexotrade.net/nexotrade-blockchain/ws/socket.io/",
-        kafkaBrokerUrl: process.env.KAFKA_BROKER_URL || "kafka://localhost:9092",
+        marketDataWebsocketUrl:
+          process.env.MARKET_DATA_WEBSOCKET_URL ||
+          "ws://www.demo.nexotrade.net/nexotrade-blockchain/ws/socket.io/",
+        kafkaBrokerUrl:
+          process.env.KAFKA_BROKER_URL || "kafka://localhost:9092",
         redisUrl: process.env.REDIS_URL || "redis://localhost:6379",
-        mysqlDatabase: process.env.DATABASE_URL || "mysql://localhost:3306/trade_signals"
+        mysqlDatabase:
+          process.env.DATABASE_URL || "mysql://localhost:3306/trade_signals",
       };
-      
+
       res.json(config);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch configuration" });

@@ -5,7 +5,10 @@ export interface IStorage {
   createTradeSignal(signal: InsertTradeSignal): Promise<TradeSignal>;
   getTradeSignal(uuid: string): Promise<TradeSignal | undefined>;
   updateTradeSignal(uuid: string, updates: Partial<TradeSignal>): Promise<void>;
-  updateTradeSignalStatus(uuid: string, status: "active" | "sl_hit" | "tp_hit" | "expired"): Promise<void>;
+  updateTradeSignalStatus(
+    uuid: string,
+    status: "active" | "sl_hit" | "tp_hit" | "expired",
+  ): Promise<void>;
   getActiveTradeSignals(): Promise<TradeSignal[]>;
   getTradeSignalsByChannel(channelId: number): Promise<TradeSignal[]>;
 }

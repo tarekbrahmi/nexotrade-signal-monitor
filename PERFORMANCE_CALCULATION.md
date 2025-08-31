@@ -17,6 +17,7 @@ PnL% = ((Current_Price - Entry_Price) / Entry_Price) × Leverage × 100%
 ```
 
 **Example:**
+
 - Entry Price: $100
 - Current Price: $105
 - Leverage: 10x
@@ -31,6 +32,7 @@ PnL% = ((Entry_Price - Current_Price) / Entry_Price) × Leverage × 100%
 ```
 
 **Example:**
+
 - Entry Price: $100
 - Current Price: $95
 - Leverage: 10x
@@ -41,7 +43,7 @@ PnL% = ((Entry_Price - Current_Price) / Entry_Price) × Leverage × 100%
 Leverage multiplies your exposure to price movements:
 
 - **1x Leverage**: 1% price move = 1% performance
-- **10x Leverage**: 1% price move = 10% performance  
+- **10x Leverage**: 1% price move = 10% performance
 - **100x Leverage**: 1% price move = 100% performance
 
 ### Examples
@@ -51,32 +53,35 @@ Leverage multiplies your exposure to price movements:
 Entry: $1000, Current: $1050 (5% price increase)
 
 | Leverage | Performance Calculation | Result |
-|----------|------------------------|--------|
-| 1x | (50/1000) × 1 × 100% | +5% |
-| 10x | (50/1000) × 10 × 100% | +50% |
-| 25x | (50/1000) × 25 × 100% | +125% |
+| -------- | ----------------------- | ------ |
+| 1x       | (50/1000) × 1 × 100%    | +5%    |
+| 10x      | (50/1000) × 10 × 100%   | +50%   |
+| 25x      | (50/1000) × 25 × 100%   | +125%  |
 
 #### SHORT Position with Different Leverage
 
 Entry: $1000, Current: $950 (5% price decrease)
 
 | Leverage | Performance Calculation | Result |
-|----------|------------------------|--------|
-| 1x | (50/1000) × 1 × 100% | +5% |
-| 10x | (50/1000) × 10 × 100% | +50% |
-| 25x | (50/1000) × 25 × 100% | +125% |
+| -------- | ----------------------- | ------ |
+| 1x       | (50/1000) × 1 × 100%    | +5%    |
+| 10x      | (50/1000) × 10 × 100%   | +50%   |
+| 25x      | (50/1000) × 25 × 100%   | +125%  |
 
 ## Signal Status Triggers
 
 ### Take Profit (tp_hit)
+
 - **LONG**: Triggered when `Current_Price >= Target_Price`
 - **SHORT**: Triggered when `Current_Price <= Target_Price`
 
 ### Stop Loss (sl_hit)
+
 - **LONG**: Triggered when `Current_Price <= Stop_Loss_Price`
 - **SHORT**: Triggered when `Current_Price >= Stop_Loss_Price`
 
 ### Expired
+
 - Triggered when `Current_Time > (Created_At + TTL)`
 
 ## Signal Closure Fields
@@ -90,7 +95,9 @@ When a signal reaches any non-active status (tp_hit, sl_hit, expired), the syste
 ## Implementation Details
 
 ### Redis Storage
+
 For monitoring active signals, only essential data is stored:
+
 ```json
 {
   "signal_type": "BUY|SELL|LONG|SHORT",
@@ -105,7 +112,9 @@ For monitoring active signals, only essential data is stored:
 ```
 
 ### Performance Monitoring
+
 The system continuously monitors price updates and:
+
 1. Calculates real-time performance using leverage
 2. Checks for TP/SL triggers
 3. Monitors TTL expiry
@@ -114,12 +123,14 @@ The system continuously monitors price updates and:
 ## Risk Considerations
 
 ⚠️ **Important**: Higher leverage amplifies both gains and losses:
+
 - A 1% adverse price move with 100x leverage = -100% performance (total loss)
 - Always consider risk management when using high leverage
 
 ## Formula Validation
 
 These formulas match Binance futures trading calculations:
+
 - ROE (Return on Equity) = PnL%
 - Mark Price is used instead of Last Price for more accurate calculations
 - Funding fees are not included in these calculations (as they don't apply to signals)
@@ -133,6 +144,7 @@ The system calculates additional metrics to provide comprehensive signal analysi
 The risk-reward ratio measures the potential profit versus potential loss for a trade signal.
 
 **Formula:**
+
 ```
 Risk-Reward Ratio = |Target_Price - Entry_Price| / |Entry_Price - Stop_Loss_Price|
 ```
@@ -140,18 +152,21 @@ Risk-Reward Ratio = |Target_Price - Entry_Price| / |Entry_Price - Stop_Loss_Pric
 **Examples:**
 
 **LONG Position:**
+
 - Entry Price: $100
 - Target Price: $120 (20% gain target)
 - Stop Loss: $90 (10% loss protection)
 - Risk-Reward Ratio: |120 - 100| / |100 - 90| = 20 / 10 = 2.0
 
 **SHORT Position:**
+
 - Entry Price: $100
 - Target Price: $80 (20% gain target)
 - Stop Loss: $110 (10% loss protection)
 - Risk-Reward Ratio: |80 - 100| / |100 - 110| = 20 / 10 = 2.0
 
 **Interpretation:**
+
 - **Ratio ≥ 3.0**: Excellent risk-reward
 - **Ratio ≥ 2.0**: Good risk-reward
 - **Ratio ≥ 1.0**: Acceptable risk-reward
@@ -162,6 +177,7 @@ Risk-Reward Ratio = |Target_Price - Entry_Price| / |Entry_Price - Stop_Loss_Pric
 Signal strength is a 1-5 rating that evaluates signal quality based on risk-reward ratio and leverage.
 
 **Calculation Logic:**
+
 ```
 Base Strength = 1
 
@@ -179,14 +195,15 @@ Final Rating = Max(1, Min(5, Rounded Total))
 
 **Examples:**
 
-| Risk-Reward | Leverage | Calculation | Final Rating |
-|-------------|----------|-------------|--------------|
-| 3.5 | 10x | 1 + 2 + 1 = 4 | ⭐⭐⭐⭐ (4/5) |
-| 2.2 | 5x | 1 + 1 + 0.5 = 2.5 → 3 | ⭐⭐⭐ (3/5) |
-| 1.5 | 2x | 1 + 0 + 0 = 1 | ⭐ (1/5) |
-| 0.8 | 15x | 1 - 1 + 1 = 1 | ⭐ (1/5) |
+| Risk-Reward | Leverage | Calculation           | Final Rating   |
+| ----------- | -------- | --------------------- | -------------- |
+| 3.5         | 10x      | 1 + 2 + 1 = 4         | ⭐⭐⭐⭐ (4/5) |
+| 2.2         | 5x       | 1 + 1 + 0.5 = 2.5 → 3 | ⭐⭐⭐ (3/5)   |
+| 1.5         | 2x       | 1 + 0 + 0 = 1         | ⭐ (1/5)       |
+| 0.8         | 15x      | 1 - 1 + 1 = 1         | ⭐ (1/5)       |
 
 **Rating Interpretation:**
+
 - **5/5**: Exceptional signal quality
 - **4/5**: Strong signal quality
 - **3/5**: Good signal quality
@@ -210,8 +227,9 @@ Market trend indicates the general direction based on recent price movement and 
    - Otherwise → "neutral"
 
 **Values:**
+
 - **"bullish"**: Upward market direction
-- **"bearish"**: Downward market direction  
+- **"bearish"**: Downward market direction
 - **"neutral"**: Sideways or uncertain direction
 
 ## Real-Time Signal Updates

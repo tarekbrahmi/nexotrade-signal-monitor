@@ -1,16 +1,16 @@
-import { Consumer, Kafka } from 'kafkajs';
-import { IStorage } from '../storage';
-import { RedisClient } from './redis-client';
-import { StartupSyncService } from './startup-sync';
+import { Consumer, Kafka } from "kafkajs";
+import { IStorage } from "../storage";
+import { RedisClient } from "./redis-client";
+import { StartupSyncService } from "./startup-sync";
 
 // Topics configuration
 const KAFKA_TOPICS = {
-  TRADE_SIGNAL_EVENTS: 'TRADE_SIGNAL_EVENTS'
+  TRADE_SIGNAL_EVENTS: "TRADE_SIGNAL_EVENTS",
 };
 
 // Event types
 const TRADE_SIGNAL_EVENTS = {
-  SIGNAL_CREATED: 'SIGNAL_CREATED'
+  SIGNAL_CREATED: "SIGNAL_CREATED",
 };
 
 export class KafkaConsumer {
@@ -21,12 +21,12 @@ export class KafkaConsumer {
 
   constructor(
     private storage: IStorage,
-    private redisClient: RedisClient
+    private redisClient: RedisClient,
   ) {
-    const brokerUrl = process.env.KAFKA_BROKER_URL || '51.79.84.45:9092';
+    const brokerUrl = process.env.KAFKA_BROKER_URL || "51.79.84.45:9092";
 
     this.kafka = new Kafka({
-      clientId: 'trade-signal-monitor',
+      clientId: "trade-signal-monitor",
       brokers: [brokerUrl],
     });
 
@@ -37,15 +37,23 @@ export class KafkaConsumer {
     // For now, we'll use basic validation instead of loading JSON schemas
     // This matches the concept from Python but simplified for TypeScript
     this.schemas[TRADE_SIGNAL_EVENTS.SIGNAL_CREATED] = {
-      required: ['eventType', 'data'],
-      dataRequired: ['uuid', 'trader_id', 'channel_id', 'asset_symbol', 'entry_price', 'target_price', 'signal_type']
+      required: ["eventType", "data"],
+      dataRequired: [
+        "uuid",
+        "trader_id",
+        "channel_id",
+        "asset_symbol",
+        "entry_price",
+        "target_price",
+        "signal_type",
+      ],
     };
-    console.log('✓ Event schemas loaded successfully');
+    console.log("✓ Event schemas loaded successfully");
   }
 
   async connect(): Promise<void> {
     if (this.running) {
-      console.warn('Kafka consumer is already running');
+      console.warn("Kafka consumer is already running");
       return;
     }
 
@@ -62,9 +70,9 @@ export class KafkaConsumer {
       const topics = [KAFKA_TOPICS.TRADE_SIGNAL_EVENTS];
 
       this.consumer = this.kafka.consumer({
-        groupId: 'signal-monitor-group',
+        groupId: "signal-monitor-group",
         sessionTimeout: 30000,
-        heartbeatInterval: 3000
+        heartbeatInterval: 3000,
       });
 
       await this.consumer.connect();
@@ -74,8 +82,10 @@ export class KafkaConsumer {
         await this.consumer.subscribe({ topic, fromBeginning: false });
       }
 
-      console.log(`✓ Kafka consumer connected to ${process.env.KAFKA_BROKER_URL || '51.79.84.45:9092'}`);
-      console.log(`✓ Subscribed to topics: ${topics.join(', ')}`);
+      console.log(
+        `✓ Kafka consumer connected to ${process.env.KAFKA_BROKER_URL || "51.79.84.45:9092"}`,
+      );
+      console.log(`✓ Subscribed to topics: ${topics.join(", ")}`);
 
       this.running = true;
 
@@ -85,9 +95,8 @@ export class KafkaConsumer {
           await this._processMessage(message);
         },
       });
-
     } catch (error) {
-      console.error('Failed to start Kafka consumer:', error);
+      console.error("Failed to start Kafka consumer:", error);
       throw error;
     }
   }
@@ -113,12 +122,11 @@ export class KafkaConsumer {
       } else {
         console.warn(`Unknown event type: ${eventType}`);
       }
-
     } catch (error) {
       if (error instanceof SyntaxError) {
-        console.error('Failed to parse JSON message:', error.message);
+        console.error("Failed to parse JSON message:", error.message);
       } else {
-        console.error('Failed to process message:', error);
+        console.error("Failed to process message:", error);
       }
     }
   }
@@ -128,7 +136,7 @@ export class KafkaConsumer {
       // Support both eventType and event_type formats
       const eventType = eventData.eventType || eventData.event_type;
       if (!eventType) {
-        console.error('Missing event type in message');
+        console.error("Missing event type in message");
         return false;
       }
 
@@ -157,9 +165,8 @@ export class KafkaConsumer {
       }
 
       return true;
-
     } catch (error) {
-      console.error('Validation error:', error);
+      console.error("Validation error:", error);
       return false;
     }
   }
@@ -184,31 +191,34 @@ export class KafkaConsumer {
         leverage: data.leverage,
         ttl: data.ttl,
         created_at: data.created_at,
-        status: 'active'
+        status: "active",
       });
 
       const redisKey = `${data.channel_id}:${data.asset_symbol}:${data.uuid}`;
-      const ttl = data.ttl || '24h';
-      const hours = parseInt(ttl.replace('h', ''));
+      const ttl = data.ttl || "24h";
+      const hours = parseInt(ttl.replace("h", ""));
       const ttlSeconds = hours * 3600;
 
       if (this.redisClient) {
-        await this.redisClient.setSignal(redisKey, {
-          signal_type: data.signal_type,
-          entry_price: data.entry_price,
-          target_price: data.target_price,
-          stop_loss_price: data.stop_loss_price,
-          leverage: data.leverage,
-          ttl: data.ttl,
-          created_at: data.created_at,
-          status: 'active'
-        }, ttlSeconds);
+        await this.redisClient.setSignal(
+          redisKey,
+          {
+            signal_type: data.signal_type,
+            entry_price: data.entry_price,
+            target_price: data.target_price,
+            stop_loss_price: data.stop_loss_price,
+            leverage: data.leverage,
+            ttl: data.ttl,
+            created_at: data.created_at,
+            status: "active",
+          },
+          ttlSeconds,
+        );
       }
 
       console.log(`✓ Created trade signal ${data.uuid} from external event`);
-
     } catch (error) {
-      console.error('Failed to handle SIGNAL_CREATED event:', error);
+      console.error("Failed to handle SIGNAL_CREATED event:", error);
     }
   }
 
@@ -222,7 +232,7 @@ export class KafkaConsumer {
       await this.consumer.disconnect();
       this.consumer = null;
     }
-    console.log('✓ Kafka consumer stopped');
+    console.log("✓ Kafka consumer stopped");
   }
 
   isConnected(): boolean {

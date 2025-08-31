@@ -1,20 +1,20 @@
-import mysql from 'mysql2/promise';
-import { TradeSignal, InsertTradeSignal } from '@shared/schema';
-import { IStorage } from '../storage';
+import mysql from "mysql2/promise";
+import { TradeSignal, InsertTradeSignal } from "@shared/schema";
+import { IStorage } from "../storage";
 
 export class MySQLClient implements IStorage {
   private pool: mysql.Pool;
 
   constructor() {
     const dbConfig = {
-      host: process.env.DB_HOST || '51.79.84.45',
-      user: process.env.DB_USER || 'nexotrade',
-      password: process.env.DB_PASS || 'P@SSw0rd',
-      database: process.env.DB_NAME || 'trade_signals',
-      port: parseInt(process.env.DB_PORT || '3306'),
+      host: process.env.DB_HOST || "51.79.84.45",
+      user: process.env.DB_USER || "nexotrade",
+      password: process.env.DB_PASS || "P@SSw0rd",
+      database: process.env.DB_NAME || "trade_signals",
+      port: parseInt(process.env.DB_PORT || "3306"),
       waitForConnections: true,
       connectionLimit: 10,
-      queueLimit: 0
+      queueLimit: 0,
     };
 
     this.pool = mysql.createPool(dbConfig);
@@ -27,12 +27,14 @@ export class MySQLClient implements IStorage {
     try {
       // First check if signal already exists
       const [existing] = await connection.execute(
-        'SELECT uuid FROM trade_signals WHERE uuid = ?',
-        [signal.uuid]
+        "SELECT uuid FROM trade_signals WHERE uuid = ?",
+        [signal.uuid],
       );
 
       if (Array.isArray(existing) && existing.length > 0) {
-        console.log(`Trade signal ${signal.uuid} already exists, skipping creation`);
+        console.log(
+          `Trade signal ${signal.uuid} already exists, skipping creation`,
+        );
         await connection.rollback();
         return signal as TradeSignal;
       }
@@ -46,7 +48,7 @@ export class MySQLClient implements IStorage {
           performance_rating, created_at, status) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          signal.id,           // Add ID from Kafka data
+          signal.id, // Add ID from Kafka data
           signal.uuid,
           signal.trader_id,
           signal.channel_id,
@@ -59,17 +61,18 @@ export class MySQLClient implements IStorage {
           signal.target_price || null,
           signal.stop_loss_price || null,
           signal.trade_price || null,
-          signal.ttl || '24h',
+          signal.ttl || "24h",
           signal.performance_rating || null,
-          signal.created_at,  // Keep as ISO string
-          signal.status
-        ]
+          signal.created_at, // Keep as ISO string
+          signal.status,
+        ],
       );
 
       await connection.commit();
-      console.log(`✅ Trade signal ${signal.uuid} successfully created in database`);
+      console.log(
+        `✅ Trade signal ${signal.uuid} successfully created in database`,
+      );
       return signal as TradeSignal;
-
     } catch (error) {
       await connection.rollback();
       console.error(`❌ Failed to create trade signal ${signal.uuid}:`, error);
@@ -83,8 +86,8 @@ export class MySQLClient implements IStorage {
     const connection = await this.pool.getConnection();
     try {
       const [rows] = await connection.execute(
-        'SELECT * FROM trade_signals WHERE uuid = ?',
-        [uuid]
+        "SELECT * FROM trade_signals WHERE uuid = ?",
+        [uuid],
       );
       const signals = rows as TradeSignal[];
       return signals.length > 0 ? signals[0] : undefined;
@@ -93,27 +96,35 @@ export class MySQLClient implements IStorage {
     }
   }
 
-  async updateTradeSignal(uuid: string, updates: Partial<TradeSignal>): Promise<void> {
+  async updateTradeSignal(
+    uuid: string,
+    updates: Partial<TradeSignal>,
+  ): Promise<void> {
     const connection = await this.pool.getConnection();
     try {
-      const setClause = Object.keys(updates).map(key => `${key} = ?`).join(', ');
+      const setClause = Object.keys(updates)
+        .map((key) => `${key} = ?`)
+        .join(", ");
       const values = Object.values(updates);
 
       await connection.execute(
         `UPDATE trade_signals SET ${setClause} WHERE uuid = ?`,
-        [...values, uuid]
+        [...values, uuid],
       );
     } finally {
       connection.release();
     }
   }
 
-  async updateTradeSignalStatus(uuid: string, status: "active" | "sl_hit" | "tp_hit" | "expired"): Promise<void> {
+  async updateTradeSignalStatus(
+    uuid: string,
+    status: "active" | "sl_hit" | "tp_hit" | "expired",
+  ): Promise<void> {
     const connection = await this.pool.getConnection();
     try {
       await connection.execute(
-        'UPDATE trade_signals SET status = ?, updatedAt = CURRENT_TIMESTAMP WHERE uuid = ?',
-        [status, uuid]
+        "UPDATE trade_signals SET status = ?, updatedAt = CURRENT_TIMESTAMP WHERE uuid = ?",
+        [status, uuid],
       );
     } finally {
       connection.release();
@@ -124,7 +135,7 @@ export class MySQLClient implements IStorage {
     const connection = await this.pool.getConnection();
     try {
       const [rows] = await connection.execute(
-        'SELECT * FROM trade_signals WHERE status = "active"'
+        'SELECT * FROM trade_signals WHERE status = "active"',
       );
       return rows as TradeSignal[];
     } finally {
@@ -136,8 +147,8 @@ export class MySQLClient implements IStorage {
     const connection = await this.pool.getConnection();
     try {
       const [rows] = await connection.execute(
-        'SELECT * FROM trade_signals WHERE channel_id = ?',
-        [channelId]
+        "SELECT * FROM trade_signals WHERE channel_id = ?",
+        [channelId],
       );
       return rows as TradeSignal[];
     } finally {
