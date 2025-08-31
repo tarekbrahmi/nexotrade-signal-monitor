@@ -39,14 +39,14 @@ export class SignalMonitor {
         let newStatus = signalData.status;
         let performance = 0;
 
-        if (signalData.signal_type === 'buy') {
+        if (signalData.signal_type === 'BUY' || signalData.signal_type === 'LONG') {
           performance = ((currentPrice - entryPrice) / entryPrice) * 100;
           if (currentPrice >= targetPrice) {
             newStatus = 'tp_hit';
           } else if (currentPrice <= stopLossPrice) {
             newStatus = 'sl_hit';
           }
-        } else {
+        } else if (signalData.signal_type === 'SELL' || signalData.signal_type === 'SHORT') {
           performance = ((entryPrice - currentPrice) / entryPrice) * 100;
           if (currentPrice <= targetPrice) {
             newStatus = 'tp_hit';
@@ -94,7 +94,7 @@ export class SignalMonitor {
       }
 
       // Broadcast updates to connected clients
-      for (const update of channelUpdates.values()) {
+      for (const update of Array.from(channelUpdates.values())) {
         this.broadcastUpdate(update);
       }
 

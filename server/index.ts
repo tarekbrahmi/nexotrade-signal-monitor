@@ -1,17 +1,20 @@
 import 'dotenv/config';
 import express from 'express';
+import { createServer } from 'http';
 // Removed memory storage import - now using MySQL + Redis
 import { KafkaConsumer } from "./services/kafka-consumer";
 import { MarketDataClient } from "./services/market-data-client";
 import { SignalMonitor } from "./services/signal-monitor";
 import { RedisClient } from "./services/redis-client";
 import { MySQLClient } from "./services/mysql-client";
+import { WebSocketServer } from "./services/websocket-server";
 import { setupDatabase } from "./database-setup";
 
 console.log("Starting Trade Signal Monitor Backend...");
 
-// Create express app for health checks
+// Create express app and HTTP server for WebSocket
 const app = express();
+const httpServer = createServer(app);
 const PORT = process.env.PORT || 5000;
 
 app.get('/', (req, res) => {
@@ -71,6 +74,11 @@ app.get('/health', (req, res) => {
     console.log("Initializing signal monitor...");
     const signalMonitor = new SignalMonitor(mysqlClient, redisClient);
 
+    // Initialize WebSocket server
+    console.log("Initializing WebSocket server...");
+    const wsServer = new WebSocketServer(httpServer, signalMonitor);
+    console.log("✓ WebSocket server initialized");
+
     // Initialize market data client - CRITICAL
     console.log("Connecting to market data WebSocket...");
     const marketDataClient = new MarketDataClient(signalMonitor);
@@ -94,12 +102,13 @@ app.get('/health', (req, res) => {
       process.exit(1);
     }
 
-    // Start the Express server
-    app.listen(Number(PORT), '0.0.0.0', () => {
+    // Start the HTTP server (with Socket.IO attached)
+    httpServer.listen(Number(PORT), '0.0.0.0', () => {
       console.log(`\n🚀 Trade Signal Monitor Backend is running on port ${PORT}!`);
       console.log("- Listening for SIGNAL_CREATED events on Kafka");
       console.log("- Processing real-time market data from WebSocket");
       console.log("- Monitoring active trade signals");
+      console.log("- WebSocket server ready for trader connections");
       console.log(`- Health check available at http://localhost:${PORT}/health`);
     });
     
