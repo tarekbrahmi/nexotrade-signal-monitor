@@ -2,18 +2,22 @@ import { IStorage } from '../storage';
 import { RedisClient } from './redis-client';
 import { SignalUpdateMessage, PricePoint, TradeSignal } from '@shared/schema';
 import { PerformanceCalculator } from './performance-metrics';
+import { KafkaProducer } from './kafka-producer';
 
 export class SignalMonitor {
   private priceCache = new Map<string, number>();
   private priceHistory = new Map<string, PricePoint[]>();
   private updateCallbacks = new Set<(message: SignalUpdateMessage) => void>();
   private performanceCalculator: PerformanceCalculator;
+  private kafkaProducer: KafkaProducer | null;
 
   constructor(
     private storage: IStorage,
-    private redisClient: RedisClient
+    private redisClient: RedisClient,
+    kafkaProducer: KafkaProducer | null = null
   ) {
     this.performanceCalculator = new PerformanceCalculator();
+    this.kafkaProducer = kafkaProducer;
     this.initializePriceHistoryCleanup();
   }
 
@@ -42,7 +46,7 @@ export class SignalMonitor {
         const entryPrice = parseFloat(signalData.entry_price);
         const targetPrice = parseFloat(signalData.target_price);
         const stopLossPrice = parseFloat(signalData.stop_loss_price);
-        const leverage = parseFloat(signalData.leverage) || 1; // Default to 1x if no leverage
+        const leverage = parseFloat(signalData.leverage);
 
         let newStatus = signalData.status;
         let performance = 0;
@@ -177,9 +181,6 @@ export class SignalMonitor {
     }, 5 * 60 * 1000); // Run every 5 minutes
   }
 
-  private getPriceHistory(symbol: string): PricePoint[] {
-    return this.priceHistory.get(symbol) || [];
-  }
   private async closeSignalWithMetrics(
     uuid: string, 
     symbol: string, 
@@ -204,6 +205,38 @@ export class SignalMonitor {
         signalStrength: metrics.signalStrength,
         marketTrend: marketTrend
       });
+
+      // Publish SIGNAL_CLOSED event to Kafka
+      if (this.kafkaProducer) {
+        try {
+          // Calculate performance percentage for the event
+          const entryPrice = typeof signalData.entry_price === 'string' ? parseFloat(signalData.entry_price) : signalData.entry_price;
+          const leverage = (typeof signalData.leverage === 'string' ? parseFloat(signalData.leverage) : signalData.leverage) || 1;
+          let performance = 0;
+
+          if (signalData.signal_type === 'BUY' || signalData.signal_type === 'buy') {
+            performance = ((currentPrice - entryPrice) / entryPrice) * leverage * 100;
+          } else if (signalData.signal_type === 'SELL' || signalData.signal_type === 'sell') {
+            performance = ((entryPrice - currentPrice) / entryPrice) * leverage * 100;
+          }
+
+          await this.kafkaProducer.publishSignalClosed({
+            uuid: uuid,
+            trader_id: signalData.trader_id,
+            channel_id: signalData.channel_id,
+            execution_price: currentPrice,
+            closed_at: new Date(),
+            performance: performance.toFixed(2) + '%',
+            riskRewardRatio: metrics.riskRewardRatio,
+            signalStrength: metrics.signalStrength,
+            status: newStatus as 'tp_hit' | 'sl_hit' | 'expired'
+          });
+          
+          console.log(`✓ Published SIGNAL_CLOSED event for ${uuid} to Kafka`);
+        } catch (kafkaError) {
+          console.error(`Failed to publish SIGNAL_CLOSED event for ${uuid}:`, kafkaError);
+        }
+      }
       
       console.log(`✓ Signal ${uuid} closed with status ${newStatus} and simple metrics calculated`);
       

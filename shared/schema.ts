@@ -105,6 +105,23 @@ export const signalCreatedEventSchema = z.object({
   }),
 });
 
+export const signalClosedEventSchema = z.object({
+  version: z.string(),
+  eventType: z.literal("SIGNAL_CLOSED"),
+  timestamp: z.string(),
+  data: z.object({
+    uuid: z.string(),
+    trader_id: z.string(),
+    channel_id: z.number(),
+    execution_price: z.number(),
+    closed_at: z.string(),
+    performance: z.string(),
+    riskRewardRatio: z.number(),
+    signalStrength: z.number(),
+    status: z.enum(["tp_hit", "sl_hit", "expired"]),
+  }),
+});
+
 export const marketDataUpdateSchema = z.tuple([
   z.literal("nxt_price_update"),
   z.object({
@@ -141,6 +158,7 @@ export const signalUpdateMessageSchema = z.object({
 
 // Export type definitions
 export type SignalCreatedEvent = z.infer<typeof signalCreatedEventSchema>;
+export type SignalClosedEvent = z.infer<typeof signalClosedEventSchema>;
 export type MarketDataUpdate = z.infer<typeof marketDataUpdateSchema>;
 export type TraderConnection = z.infer<typeof traderConnectionSchema>;
 export type SignalUpdateMessage = z.infer<typeof signalUpdateMessageSchema>;

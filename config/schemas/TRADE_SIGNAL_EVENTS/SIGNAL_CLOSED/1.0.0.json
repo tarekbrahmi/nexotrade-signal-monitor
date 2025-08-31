@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "SIGNAL_CLOSED Event Schema",
+  "description": "Schema for trade signal closure events",
+  "properties": {
+    "version": {
+      "type": "string",
+      "enum": ["1.0.0"]
+    },
+    "eventType": {
+      "type": "string",
+      "enum": ["SIGNAL_CLOSED"]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "trader_id": {
+          "type": "string"
+        },
+        "channel_id": {
+          "type": "integer"
+        },
+        "execution_price": {
+          "type": "number"
+        },
+        "closed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "performance": {
+          "type": "string"
+        },
+        "riskRewardRatio": {
+          "type": "number"
+        },
+        "signalStrength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "status": {
+          "type": "string",
+          "enum": ["tp_hit", "sl_hit", "expired"]
+        }
+      },
+      "required": [
+        "uuid",
+        "trader_id",
+        "channel_id",
+        "execution_price",
+        "closed_at",
+        "performance",
+        "riskRewardRatio",
+        "signalStrength",
+        "status"
+      ]
+    }
+  },
+  "required": ["version", "eventType", "timestamp", "data"]
+}

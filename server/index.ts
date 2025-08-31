@@ -1,18 +1,13 @@
 import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'http';
-// Removed memory storage import - now using MySQL + Redis
 import { KafkaConsumer } from "./services/kafka-consumer";
+import { KafkaProducer } from "./services/kafka-producer";
 import { MarketDataClient } from "./services/market-data-client";
-import { SignalMonitor } from "./services/signal-monitor";
-import { RedisClient } from "./services/redis-client";
 import { MySQLClient } from "./services/mysql-client";
+import { RedisClient } from "./services/redis-client";
+import { SignalMonitor } from "./services/signal-monitor";
 import { WebSocketServer } from "./services/websocket-server";
-import { setupDatabase } from "./database-setup";
-
-console.log("Starting Trade Signal Monitor Backend...");
-
-// Create express app and HTTP server for WebSocket
 const app = express();
 const httpServer = createServer(app);
 const PORT = process.env.PORT || 5000;
@@ -25,30 +20,9 @@ app.get('/', (req, res) => {
   });
 });
 
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'healthy',
-    services: {
-      mysql: 'checking...',
-      redis: 'checking...',
-      kafka: 'checking...',
-      websocket: 'checking...'
-    }
-  });
-});
 
 (async () => {
   try {
-    // Setup database first - CRITICAL
-    console.log("Setting up database...");
-    const dbSetupSuccess = await setupDatabase();
-    if (!dbSetupSuccess) {
-      console.error("💥 CRITICAL: Database setup failed! Exiting...");
-      process.exit(1);
-    }
-    
-    console.log("Initializing storage...");
-    
     // Initialize MySQL client - CRITICAL
     let mysqlClient: MySQLClient | null = null;
     try {
@@ -70,9 +44,22 @@ app.get('/health', (req, res) => {
       process.exit(1);
     }
 
-    // Initialize signal monitor with MySQL storage
+    // Initialize Kafka producer - NON-CRITICAL (optional service)
+    console.log("Connecting to Kafka producer...");
+    let kafkaProducer: KafkaProducer | null = null;
+    try {
+      kafkaProducer = new KafkaProducer();
+      await kafkaProducer.connect();
+      console.log("✓ Kafka producer connected and ready to publish events");
+    } catch (error) {
+      console.warn("⚠️  WARNING: Kafka producer connection failed - continuing without event publishing:", (error as Error).message);
+      console.log("System will continue to work but SIGNAL_CLOSED events won't be published to Kafka");
+      kafkaProducer = null;
+    }
+
+    // Initialize signal monitor with MySQL storage and Kafka producer
     console.log("Initializing signal monitor...");
-    const signalMonitor = new SignalMonitor(mysqlClient, redisClient);
+    const signalMonitor = new SignalMonitor(mysqlClient, redisClient, kafkaProducer);
 
     // Initialize WebSocket server
     console.log("Initializing WebSocket server...");
@@ -90,22 +77,24 @@ app.get('/health', (req, res) => {
       process.exit(1);
     }
 
-    // Initialize Kafka consumer with MySQL storage - CRITICAL
+    // Initialize Kafka consumer with MySQL storage - NON-CRITICAL (optional service)
     console.log("Connecting to Kafka...");
     let kafkaConsumer: KafkaConsumer | null = null;
     try {
-      kafkaConsumer = new KafkaConsumer(mysqlClient, redisClient, signalMonitor);
+      kafkaConsumer = new KafkaConsumer(mysqlClient, redisClient);
       await kafkaConsumer.connect();
       console.log("✓ Kafka consumer connected and listening for SIGNAL_CREATED events");
     } catch (error) {
-      console.error("💥 CRITICAL: Kafka connection failed!", (error as Error).message);
-      process.exit(1);
+      console.warn("⚠️  WARNING: Kafka consumer connection failed - continuing without external signal events:", (error as Error).message);
+      console.log("System will continue to work but won't receive external SIGNAL_CREATED events");
+      kafkaConsumer = null;
     }
 
     // Start the HTTP server (with Socket.IO attached)
     httpServer.listen(Number(PORT), '0.0.0.0', () => {
       console.log(`\n🚀 Trade Signal Monitor Backend is running on port ${PORT}!`);
       console.log("- Listening for SIGNAL_CREATED events on Kafka");
+      console.log("- Publishing SIGNAL_CLOSED events to Kafka");
       console.log("- Processing real-time market data from WebSocket");
       console.log("- Monitoring active trade signals");
       console.log("- WebSocket server ready for trader connections");
@@ -132,6 +121,11 @@ app.get('/health', (req, res) => {
       if (kafkaConsumer) {
         await kafkaConsumer.disconnect();
         console.log('✓ Kafka consumer disconnected');
+      }
+      
+      if (kafkaProducer) {
+        await kafkaProducer.disconnect();
+        console.log('✓ Kafka producer disconnected');
       }
       
       console.log('✓ Shutdown complete');

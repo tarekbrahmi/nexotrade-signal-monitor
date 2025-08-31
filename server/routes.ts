@@ -1,21 +1,25 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { MySQLClient } from "./services/mysql-client";
 import { WebSocketServer } from "./services/websocket-server";
 import { KafkaConsumer } from "./services/kafka-consumer";
 import { MarketDataClient } from "./services/market-data-client";
 import { SignalMonitor } from "./services/signal-monitor";
 import { RedisClient } from "./services/redis-client";
+import { signJWT } from "./utils/jwt";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
+  // Initialize MySQL client
+  const mysqlClient = new MySQLClient();
+  
   // Initialize Redis client
   const redisClient = new RedisClient();
   await redisClient.connect();
 
-  // Initialize signal monitor
-  const signalMonitor = new SignalMonitor(storage, redisClient);
+  // Initialize signal monitor with MySQL
+  const signalMonitor = new SignalMonitor(mysqlClient, redisClient);
 
   // Initialize WebSocket server
   const wsServer = new WebSocketServer(httpServer, signalMonitor);
@@ -24,20 +28,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const marketDataClient = new MarketDataClient(signalMonitor);
   await marketDataClient.connect();
 
-  // Initialize Kafka consumer
-  const kafkaConsumer = new KafkaConsumer(storage, redisClient, signalMonitor);
+  // Initialize Kafka consumer with MySQL
+  const kafkaConsumer = new KafkaConsumer(mysqlClient, redisClient);
   await kafkaConsumer.connect();
 
   // Dashboard API endpoints
   app.get("/api/dashboard/stats", async (req, res) => {
     try {
-      const activeSignals = await storage.getActiveTradeSignals();
+      const activeSignals = await mysqlClient.getActiveTradeSignals();
       const activeConnections = wsServer.getConnectionCount();
       
       res.json({
         activeConnections,
         activeSignals: activeSignals.length,
-        kafkaMessagesProcessed: kafkaConsumer.getMessageCount(),
+        kafkaConnected: kafkaConsumer.isConnected(),
         redisMemoryUsage: await redisClient.getMemoryUsage(),
       });
     } catch (error) {
@@ -47,9 +51,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/dashboard/signals/recent", async (req, res) => {
     try {
-      const signals = await storage.getActiveTradeSignals();
+      const signals = await mysqlClient.getActiveTradeSignals();
       const recentSignals = signals
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 10);
       
       res.json(recentSignals);
@@ -82,7 +86,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         {
           name: "MySQL Database",
           host: "Signal persistence",
-          status: "connected", // Using memory storage for now
+          status: "connected", // Using MySQL storage
           type: "mysql"
         }
       ];
@@ -116,6 +120,5 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to fetch configuration" });
     }
   });
-
   return httpServer;
 }

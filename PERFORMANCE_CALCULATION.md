@@ -123,3 +123,129 @@ These formulas match Binance futures trading calculations:
 - ROE (Return on Equity) = PnL%
 - Mark Price is used instead of Last Price for more accurate calculations
 - Funding fees are not included in these calculations (as they don't apply to signals)
+
+## Additional Performance Metrics
+
+The system calculates additional metrics to provide comprehensive signal analysis beyond basic PnL performance.
+
+### Risk-Reward Ratio
+
+The risk-reward ratio measures the potential profit versus potential loss for a trade signal.
+
+**Formula:**
+```
+Risk-Reward Ratio = |Target_Price - Entry_Price| / |Entry_Price - Stop_Loss_Price|
+```
+
+**Examples:**
+
+**LONG Position:**
+- Entry Price: $100
+- Target Price: $120 (20% gain target)
+- Stop Loss: $90 (10% loss protection)
+- Risk-Reward Ratio: |120 - 100| / |100 - 90| = 20 / 10 = 2.0
+
+**SHORT Position:**
+- Entry Price: $100
+- Target Price: $80 (20% gain target)
+- Stop Loss: $110 (10% loss protection)
+- Risk-Reward Ratio: |80 - 100| / |100 - 110| = 20 / 10 = 2.0
+
+**Interpretation:**
+- **Ratio ≥ 3.0**: Excellent risk-reward
+- **Ratio ≥ 2.0**: Good risk-reward
+- **Ratio ≥ 1.0**: Acceptable risk-reward
+- **Ratio < 1.0**: Poor risk-reward (more risk than reward)
+
+### Signal Strength
+
+Signal strength is a 1-5 rating that evaluates signal quality based on risk-reward ratio and leverage.
+
+**Calculation Logic:**
+```
+Base Strength = 1
+
+Risk-Reward Adjustments:
+- If ratio ≥ 3.0: +2 points
+- If ratio ≥ 2.0: +1 point
+- If ratio < 1.0: -1 point
+
+Leverage Adjustments:
+- If leverage ≥ 10x: +1 point
+- If leverage ≥ 5x: +0.5 points
+
+Final Rating = Max(1, Min(5, Rounded Total))
+```
+
+**Examples:**
+
+| Risk-Reward | Leverage | Calculation | Final Rating |
+|-------------|----------|-------------|--------------|
+| 3.5 | 10x | 1 + 2 + 1 = 4 | ⭐⭐⭐⭐ (4/5) |
+| 2.2 | 5x | 1 + 1 + 0.5 = 2.5 → 3 | ⭐⭐⭐ (3/5) |
+| 1.5 | 2x | 1 + 0 + 0 = 1 | ⭐ (1/5) |
+| 0.8 | 15x | 1 - 1 + 1 = 1 | ⭐ (1/5) |
+
+**Rating Interpretation:**
+- **5/5**: Exceptional signal quality
+- **4/5**: Strong signal quality
+- **3/5**: Good signal quality
+- **2/5**: Fair signal quality
+- **1/5**: Weak signal quality
+
+### Market Trend
+
+Market trend indicates the general direction based on recent price movement and signal type.
+
+**Determination Logic:**
+
+1. **Signal Type Based (Primary):**
+   - BUY/LONG signals → "bullish"
+   - SELL/SHORT signals → "bearish"
+
+2. **Price History Analysis (Secondary):**
+   - Analyzes last 5 price points
+   - If price change > +0.5% → "bullish"
+   - If price change < -0.5% → "bearish"
+   - Otherwise → "neutral"
+
+**Values:**
+- **"bullish"**: Upward market direction
+- **"bearish"**: Downward market direction  
+- **"neutral"**: Sideways or uncertain direction
+
+## Real-Time Signal Updates
+
+When monitoring active signals, the system broadcasts updates containing all performance metrics:
+
+```json
+{
+  "type": "TRADE_SIGNAL_UPDATE",
+  "channel_id": 48,
+  "asset": "SOLUSDT",
+  "signals": [
+    {
+      "uuid": "bf8e9289-3059-4ca9-b168-834837f34d3e",
+      "signal_type": "BUY",
+      "current_price": "204.9",
+      "performance": "-2.44",
+      "status": "active",
+      "riskRewardRatio": 2.5,
+      "signalStrength": 3,
+      "marketTrend": "bullish"
+    }
+  ]
+}
+```
+
+## Metrics Storage
+
+When signals are closed (tp_hit, sl_hit, or expired), these metrics are permanently stored:
+
+- **riskRewardRatio**: Calculated risk-reward ratio
+- **signalStrength**: 1-5 signal quality rating
+- **marketTrend**: Market direction at closure
+- **executionPrice**: Final market price when closed
+- **closedAt**: Timestamp of signal closure
+
+These stored metrics enable comprehensive performance analysis and signal quality tracking over time.

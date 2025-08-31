@@ -1,20 +1,16 @@
-import { Kafka, Consumer } from 'kafkajs';
+import { Consumer, Kafka } from 'kafkajs';
 import { IStorage } from '../storage';
 import { RedisClient } from './redis-client';
-import { SignalMonitor } from './signal-monitor';
 import { StartupSyncService } from './startup-sync';
 
 // Topics configuration
 const KAFKA_TOPICS = {
-  TRADE_SIGNAL_EVENTS: 'TRADE_SIGNAL_EVENTS',
-  CHANNEL_EVENTS: 'CHANNEL_EVENTS',
-  USER_AUTH_EVENTS: 'USER_AUTH_EVENTS'
+  TRADE_SIGNAL_EVENTS: 'TRADE_SIGNAL_EVENTS'
 };
 
 // Event types
 const TRADE_SIGNAL_EVENTS = {
-  SIGNAL_CREATED: 'SIGNAL_CREATED',
-  SIGNAL_CLOSED: 'SIGNAL_CLOSED'
+  SIGNAL_CREATED: 'SIGNAL_CREATED'
 };
 
 export class KafkaConsumer {
@@ -25,11 +21,10 @@ export class KafkaConsumer {
 
   constructor(
     private storage: IStorage,
-    private redisClient: RedisClient,
-    private signalMonitor: SignalMonitor
+    private redisClient: RedisClient
   ) {
     const brokerUrl = process.env.KAFKA_BROKER_URL || '51.79.84.45:9092';
-    
+
     this.kafka = new Kafka({
       clientId: 'trade-signal-monitor',
       brokers: [brokerUrl],
@@ -65,7 +60,7 @@ export class KafkaConsumer {
     try {
       // Subscribe to topics
       const topics = [KAFKA_TOPICS.TRADE_SIGNAL_EVENTS];
-      
+
       this.consumer = this.kafka.consumer({
         groupId: 'signal-monitor-group',
         sessionTimeout: 30000,
@@ -73,7 +68,7 @@ export class KafkaConsumer {
       });
 
       await this.consumer.connect();
-      
+
       // Subscribe to all relevant topics
       for (const topic of topics) {
         await this.consumer.subscribe({ topic, fromBeginning: false });
@@ -115,8 +110,6 @@ export class KafkaConsumer {
       // Route to appropriate handler
       if (eventType === TRADE_SIGNAL_EVENTS.SIGNAL_CREATED) {
         await this._handleSignalCreated(eventData);
-      } else if (eventType === TRADE_SIGNAL_EVENTS.SIGNAL_CLOSED) {
-        await this._handleSignalClosed(eventData);
       } else {
         console.warn(`Unknown event type: ${eventType}`);
       }
@@ -173,11 +166,7 @@ export class KafkaConsumer {
 
   private async _handleSignalCreated(eventData: any): Promise<void> {
     try {
-      // Event data is nested under 'data' field in schema
       const data = eventData.data || eventData;
-      console.log('Processing SIGNAL_CREATED data:', data);
-      
-      // Use external data EXACTLY as provided - no conversions
       const tradeSignal = await this.storage.createTradeSignal({
         id: data.id,
         uuid: data.uuid,
@@ -198,14 +187,12 @@ export class KafkaConsumer {
         status: 'active'
       });
 
-      // Store in Redis for monitoring with TTL
       const redisKey = `${data.channel_id}:${data.asset_symbol}:${data.uuid}`;
       const ttl = data.ttl || '24h';
       const hours = parseInt(ttl.replace('h', ''));
       const ttlSeconds = hours * 3600;
 
       if (this.redisClient) {
-        // Store only essential data needed for monitoring against market data
         await this.redisClient.setSignal(redisKey, {
           signal_type: data.signal_type,
           entry_price: data.entry_price,
@@ -222,41 +209,6 @@ export class KafkaConsumer {
 
     } catch (error) {
       console.error('Failed to handle SIGNAL_CREATED event:', error);
-    }
-  }
-
-  private async _handleSignalClosed(eventData: any): Promise<void> {
-    try {
-      // Event data is nested under 'data' field in schema
-      const data = eventData.data || eventData;
-      const signalId = data.uuid;
-
-      // Find existing trade signal by UUID
-      const existingSignal = await this.storage.getTradeSignal(signalId);
-      if (!existingSignal) {
-        console.warn(`Trade signal ${signalId} not found for closure event`);
-        return;
-      }
-
-      // Parse closure data
-      const closedAt = new Date(data.closed_at.replace('Z', '+00:00'));
-      const executionPrice = data.execution_price;
-
-      // Update trade signal status
-      await this.storage.updateTradeSignal(signalId, {
-        status: 'tp_hit' // Using tp_hit status for target reached
-      });
-
-      // Remove from Redis monitoring
-      const redisKey = `${existingSignal.channel_id}:${existingSignal.asset_symbol}:${signalId}`;
-      if (this.redisClient) {
-        await this.redisClient.deleteSignal(redisKey);
-      }
-
-      console.log(`✓ Closed trade signal ${signalId} from external event`);
-
-    } catch (error) {
-      console.error('Failed to handle SIGNAL_CLOSED event:', error);
     }
   }
 
