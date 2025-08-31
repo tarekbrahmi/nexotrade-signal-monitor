@@ -124,7 +124,7 @@ export class MySQLClient implements IStorage {
     const connection = await this.pool.getConnection();
     try {
       await connection.execute(
-        "UPDATE trade_signals SET status = ?, updatedAt = CURRENT_TIMESTAMP WHERE uuid = ?",
+        "UPDATE trade_signals SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE uuid = ?",
         [status, uuid],
       );
     } finally {

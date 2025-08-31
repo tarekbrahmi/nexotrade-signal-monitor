@@ -3,6 +3,7 @@ import { RedisClient } from "./redis-client";
 import { SignalUpdateMessage, PricePoint, TradeSignal } from "@shared/schema";
 import { PerformanceCalculator } from "./performance-metrics";
 import { KafkaProducer } from "./kafka-producer";
+import { logger } from "./logger";
 
 export class SignalMonitor {
   private priceCache = new Map<string, number>();
@@ -135,9 +136,9 @@ export class SignalMonitor {
           current_price: currentPrice.toString(),
           performance: performance.toFixed(2),
           status: newStatus,
-          riskRewardRatio: metrics.riskRewardRatio,
-          signalStrength: metrics.signalStrength,
-          marketTrend: marketTrend,
+          risk_reward_ratio: metrics.riskRewardRatio,
+          signal_strength: metrics.signalStrength,
+          market_trend: marketTrend,
         });
       }
 
@@ -146,7 +147,7 @@ export class SignalMonitor {
         this.broadcastUpdate(update);
       }
     } catch (error) {
-      console.error("Error checking signals for asset:", error);
+      logger.error("Error checking signals for asset:", error);
     }
   }
 
@@ -155,7 +156,7 @@ export class SignalMonitor {
       try {
         callback(message);
       } catch (error) {
-        console.error("Error in signal update callback:", error);
+        logger.error("Error in signal update callback:", error);
       }
     });
   }
@@ -229,12 +230,12 @@ export class SignalMonitor {
       // Update the signal with simple metrics
       await this.storage.updateTradeSignal(uuid, {
         status: newStatus,
-        closedAt: new Date(),
-        executionPrice: currentPrice,
-        updatedAt: new Date(),
-        riskRewardRatio: metrics.riskRewardRatio,
-        signalStrength: metrics.signalStrength,
-        marketTrend: marketTrend,
+        closed_at: new Date(),
+        execution_price: currentPrice,
+        updated_at: new Date(),
+        risk_reward_ratio: metrics.riskRewardRatio,
+        signal_strength: metrics.signalStrength,
+        market_trend: marketTrend,
       });
 
       // Publish SIGNAL_CLOSED event to Kafka
@@ -272,32 +273,32 @@ export class SignalMonitor {
             execution_price: currentPrice,
             closed_at: new Date(),
             performance: performance.toFixed(2) + "%",
-            riskRewardRatio: metrics.riskRewardRatio,
-            signalStrength: metrics.signalStrength,
+            risk_reward_ratio: metrics.riskRewardRatio,
+            signal_strength: metrics.signalStrength,
             status: newStatus as "tp_hit" | "sl_hit" | "expired",
           });
 
-          console.log(`✓ Published SIGNAL_CLOSED event for ${uuid} to Kafka`);
+          logger.info(`Published SIGNAL_CLOSED event for ${uuid} to Kafka`);
         } catch (kafkaError) {
-          console.error(
+          logger.error(
             `Failed to publish SIGNAL_CLOSED event for ${uuid}:`,
             kafkaError,
           );
         }
       }
 
-      console.log(
-        `✓ Signal ${uuid} closed with status ${newStatus} and simple metrics calculated`,
+      logger.info(
+        `Signal ${uuid} closed with status ${newStatus} and simple metrics calculated`,
       );
     } catch (error) {
-      console.error(`Error calculating metrics for signal ${uuid}:`, error);
+      logger.error(`Error calculating metrics for signal ${uuid}:`, error);
 
       // Fallback to basic update without metrics
       await this.storage.updateTradeSignal(uuid, {
         status: newStatus,
-        closedAt: new Date(),
-        executionPrice: currentPrice,
-        updatedAt: new Date(),
+        closed_at: new Date(),
+        execution_price: currentPrice,
+        updated_at: new Date(),
       });
     }
   }

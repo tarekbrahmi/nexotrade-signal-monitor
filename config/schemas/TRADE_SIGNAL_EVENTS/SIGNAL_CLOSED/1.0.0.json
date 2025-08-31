@@ -39,10 +39,10 @@
         "performance": {
           "type": "string"
         },
-        "riskRewardRatio": {
+        "risk_reward_ratio": {
           "type": "number"
         },
-        "signalStrength": {
+        "signal_strength": {
           "type": "integer",
           "minimum": 1,
           "maximum": 5
@@ -59,8 +59,8 @@
         "execution_price",
         "closed_at",
         "performance",
-        "riskRewardRatio",
-        "signalStrength",
+        "risk_reward_ratio",
+        "signal_strength",
         "status"
       ]
     }

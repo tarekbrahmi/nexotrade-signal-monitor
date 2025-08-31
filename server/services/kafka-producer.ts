@@ -66,8 +66,8 @@ export class KafkaProducer {
     execution_price: number;
     closed_at: Date;
     performance: string;
-    riskRewardRatio: number;
-    signalStrength: number;
+    risk_reward_ratio: number;
+    signal_strength: number;
     status: "tp_hit" | "sl_hit" | "expired";
   }): Promise<void> {
     try {
@@ -86,8 +86,8 @@ export class KafkaProducer {
           execution_price: eventData.execution_price,
           closed_at: eventData.closed_at.toISOString(),
           performance: eventData.performance,
-          riskRewardRatio: eventData.riskRewardRatio,
-          signalStrength: eventData.signalStrength,
+          risk_reward_ratio: eventData.risk_reward_ratio,
+          signal_strength: eventData.signal_strength,
           status: eventData.status,
         },
       };

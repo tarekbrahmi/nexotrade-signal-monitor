@@ -33,14 +33,14 @@ export interface TradeSignal {
     | "72h"; // From external event (required)
   created_at: string; // From external event (required) - ISO date string
   status: "active" | "sl_hit" | "tp_hit" | "expired"; // Internal status tracking
-  closedAt?: Date | null; // Internal field
-  executionPrice?: number | null; // Internal field
-  updatedAt?: Date; // Internal field
+  closed_at?: Date | null; // Internal field
+  execution_price?: number | null; // Internal field
+  updated_at?: Date; // Internal field
 
   // Simple Performance Metrics (no historical data dependency)
-  riskRewardRatio?: number | null; // TP distance / SL distance (calculated from signal data)
-  signalStrength?: number | null; // 1-5 signal strength rating
-  marketTrend?: "bullish" | "bearish" | "neutral" | null; // Current market direction
+  risk_reward_ratio?: number | null; // TP distance / SL distance (calculated from signal data)
+  signal_strength?: number | null; // 1-5 signal strength rating
+  market_trend?: "bullish" | "bearish" | "neutral" | null; // Current market direction
 }
 
 // Insert schema - EXACTLY matching external event data structure
@@ -118,8 +118,8 @@ export const insertTradeSignalSchema = z.object({
 export interface PerformanceMetrics {
   // Core Real-time Metrics
   currentPerformance: number; // Current P&L percentage
-  riskRewardRatio: number; // TP distance / SL distance
-  signalStrength: number; // 1-5 signal strength rating
+  riskRewardRatio: number; // TP distance / SL distance (keep camelCase for internal calculations)
+  signalStrength: number; // 1-5 signal strength rating (keep camelCase for internal calculations)
 }
 
 export const signalCreatedEventSchema = z.object({
@@ -157,8 +157,8 @@ export const signalClosedEventSchema = z.object({
     execution_price: z.number(),
     closed_at: z.string(),
     performance: z.string(),
-    riskRewardRatio: z.number(),
-    signalStrength: z.number(),
+    risk_reward_ratio: z.number(),
+    signal_strength: z.number(),
     status: z.enum(["tp_hit", "sl_hit", "expired"]),
   }),
 });
@@ -192,9 +192,9 @@ export const signalUpdateMessageSchema = z.object({
       current_price: z.string(),
       performance: z.string(),
       status: z.enum(["active", "sl_hit", "tp_hit", "expired"]),
-      riskRewardRatio: z.number().nullable().optional(),
-      signalStrength: z.number().nullable().optional(),
-      marketTrend: z
+      risk_reward_ratio: z.number().nullable().optional(),
+      signal_strength: z.number().nullable().optional(),
+      market_trend: z
         .enum(["bullish", "bearish", "neutral"])
         .nullable()
         .optional(),

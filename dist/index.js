@@ -15,20 +15,20 @@ var logger = winston.createLogger({
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.errors({ stack: true }),
-    winston.format.json()
+    winston.format.json(),
   ),
   defaultMeta: { service: "trade-signal-monitor" },
   transports: [
     // Error log file - only errors
     new winston.transports.File({
       filename: path.join(logsDir, "error.log"),
-      level: "error"
+      level: "error",
     }),
     // Combined log file - all levels
     new winston.transports.File({
-      filename: path.join(logsDir, "combined.log")
-    })
-  ]
+      filename: path.join(logsDir, "combined.log"),
+    }),
+  ],
 });
 
 // server/services/startup-sync.ts
@@ -48,13 +48,13 @@ var StartupSyncService = class {
         const createdAt = new Date(signal.created_at);
         const ttlHours = parseInt(signal.ttl.replace("h", ""));
         const expiryTime = new Date(
-          createdAt.getTime() + ttlHours * 60 * 60 * 1e3
+          createdAt.getTime() + ttlHours * 60 * 60 * 1e3,
         );
         const now = /* @__PURE__ */ new Date();
         if (now > expiryTime) {
           await this.storage.updateTradeSignalStatus(signal.uuid, "expired");
           logger.info(
-            `Expired signal ${signal.uuid} (created: ${signal.created_at}, ttl: ${signal.ttl})`
+            `Expired signal ${signal.uuid} (created: ${signal.created_at}, ttl: ${signal.ttl})`,
           );
           expiredSignals++;
           continue;
@@ -63,7 +63,7 @@ var StartupSyncService = class {
         const existingSignal = await this.redisClient.getSignal(redisKey);
         if (!existingSignal) {
           const remainingTtlSeconds = Math.floor(
-            (expiryTime.getTime() - now.getTime()) / 1e3
+            (expiryTime.getTime() - now.getTime()) / 1e3,
           );
           if (remainingTtlSeconds > 0) {
             await this.redisClient.setSignal(
@@ -76,19 +76,19 @@ var StartupSyncService = class {
                 leverage: signal.leverage,
                 ttl: signal.ttl,
                 created_at: signal.created_at,
-                status: "active"
+                status: "active",
               },
-              remainingTtlSeconds
+              remainingTtlSeconds,
             );
             logger.info(
-              `Added missing signal ${signal.uuid} to Redis (TTL: ${Math.floor(remainingTtlSeconds / 3600)}h remaining)`
+              `Added missing signal ${signal.uuid} to Redis (TTL: ${Math.floor(remainingTtlSeconds / 3600)}h remaining)`,
             );
             addedToRedis++;
           }
         }
       }
       logger.info(
-        `Synchronization complete: ${addedToRedis} signals added to Redis, ${expiredSignals} signals expired`
+        `Synchronization complete: ${addedToRedis} signals added to Redis, ${expiredSignals} signals expired`,
       );
     } catch (error) {
       logger.error("Failed to synchronize signals at startup:", error);
@@ -99,10 +99,10 @@ var StartupSyncService = class {
 
 // server/services/kafka-consumer.ts
 var KAFKA_TOPICS = {
-  TRADE_SIGNAL_EVENTS: "TRADE_SIGNAL_EVENTS"
+  TRADE_SIGNAL_EVENTS: "TRADE_SIGNAL_EVENTS",
 };
 var TRADE_SIGNAL_EVENTS = {
-  SIGNAL_CREATED: "SIGNAL_CREATED"
+  SIGNAL_CREATED: "SIGNAL_CREATED",
 };
 var KafkaConsumer = class {
   constructor(storage, redisClient) {
@@ -111,7 +111,7 @@ var KafkaConsumer = class {
     const brokerUrl = process.env.KAFKA_BROKER_URL || "51.79.84.45:9092";
     this.kafka = new Kafka({
       clientId: "trade-signal-monitor",
-      brokers: [brokerUrl]
+      brokers: [brokerUrl],
     });
     this._loadSchemas();
   }
@@ -129,8 +129,8 @@ var KafkaConsumer = class {
         "asset_symbol",
         "entry_price",
         "target_price",
-        "signal_type"
-      ]
+        "signal_type",
+      ],
     };
     logger.info("Event schemas loaded successfully");
   }
@@ -149,14 +149,14 @@ var KafkaConsumer = class {
       this.consumer = this.kafka.consumer({
         groupId: "signal-monitor-group",
         sessionTimeout: 3e4,
-        heartbeatInterval: 3e3
+        heartbeatInterval: 3e3,
       });
       await this.consumer.connect();
       for (const topic of topics) {
         await this.consumer.subscribe({ topic, fromBeginning: false });
       }
       logger.info(
-        `Kafka consumer connected to ${process.env.KAFKA_BROKER_URL || "51.79.84.45:9092"}`
+        `Kafka consumer connected to ${process.env.KAFKA_BROKER_URL || "51.79.84.45:9092"}`,
       );
       logger.info(`Subscribed to topics: ${topics.join(", ")}`);
       this.running = true;
@@ -164,7 +164,7 @@ var KafkaConsumer = class {
         eachMessage: async ({ topic, partition, message }) => {
           if (!this.running) return;
           await this._processMessage(message);
-        }
+        },
       });
     } catch (error) {
       logger.error("Failed to start Kafka consumer:", error);
@@ -245,7 +245,7 @@ var KafkaConsumer = class {
         leverage: data.leverage,
         ttl: data.ttl,
         created_at: data.created_at,
-        status: "active"
+        status: "active",
       });
       const redisKey = `${data.channel_id}:${data.asset_symbol}:${data.uuid}`;
       const ttl = data.ttl || "24h";
@@ -262,9 +262,9 @@ var KafkaConsumer = class {
             leverage: data.leverage,
             ttl: data.ttl,
             created_at: data.created_at,
-            status: "active"
+            status: "active",
           },
-          ttlSeconds
+          ttlSeconds,
         );
       }
       logger.info(`Created trade signal ${data.uuid} from external event`);
@@ -291,7 +291,7 @@ var KafkaConsumer = class {
 // server/services/kafka-producer.ts
 import { Kafka as Kafka2 } from "kafkajs";
 var KAFKA_TOPICS2 = {
-  TRADE_SIGNAL_EVENTS: "TRADE_SIGNAL_EVENTS"
+  TRADE_SIGNAL_EVENTS: "TRADE_SIGNAL_EVENTS",
 };
 var KafkaProducer = class {
   kafka;
@@ -305,8 +305,8 @@ var KafkaProducer = class {
       requestTimeout: 3e4,
       retry: {
         initialRetryTime: 100,
-        retries: 8
-      }
+        retries: 8,
+      },
     });
   }
   async connect() {
@@ -318,7 +318,7 @@ var KafkaProducer = class {
       this.producer = this.kafka.producer({
         maxInFlightRequests: 1,
         idempotent: true,
-        transactionTimeout: 3e4
+        transactionTimeout: 3e4,
       });
       await this.producer.connect();
       this.isConnected = true;
@@ -347,7 +347,7 @@ var KafkaProducer = class {
       const signalClosedEvent = {
         version: "1.0.0",
         eventType: "SIGNAL_CLOSED",
-        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        timestamp: /* @__PURE__ */ new Date().toISOString(),
         data: {
           uuid: eventData.uuid,
           trader_id: eventData.trader_id,
@@ -357,8 +357,8 @@ var KafkaProducer = class {
           performance: eventData.performance,
           riskRewardRatio: eventData.riskRewardRatio,
           signalStrength: eventData.signalStrength,
-          status: eventData.status
-        }
+          status: eventData.status,
+        },
       };
       const message = {
         topic: KAFKA_TOPICS2.TRADE_SIGNAL_EVENTS,
@@ -366,13 +366,13 @@ var KafkaProducer = class {
           {
             key: eventData.uuid,
             value: JSON.stringify(signalClosedEvent),
-            timestamp: Date.now().toString()
-          }
-        ]
+            timestamp: Date.now().toString(),
+          },
+        ],
       };
       await this.producer.send(message);
       logger.info(
-        `Published SIGNAL_CLOSED event for signal ${eventData.uuid} with status ${eventData.status}`
+        `Published SIGNAL_CLOSED event for signal ${eventData.uuid} with status ${eventData.status}`,
       );
     } catch (error) {
       logger.error("Failed to publish SIGNAL_CLOSED event:", error);
@@ -396,7 +396,8 @@ var MarketDataClient = class {
   maxReconnectAttempts = 5;
   async connect() {
     try {
-      const wsUrl = process.env.MARKET_DATA_WEBSOCKET_URL || "wss://www.demo.nexotrade.net";
+      const wsUrl =
+        process.env.MARKET_DATA_WEBSOCKET_URL || "wss://www.demo.nexotrade.net";
       this.socket = io(wsUrl, {
         path: "/nexotrade-blockchain/ws/socket.io",
         transports: ["websocket", "polling"],
@@ -404,7 +405,7 @@ var MarketDataClient = class {
         rememberUpgrade: true,
         timeout: 1e4,
         forceNew: true,
-        withCredentials: false
+        withCredentials: false,
       });
       this.socket.on("connect", () => {
         this.connected = true;
@@ -446,8 +447,7 @@ var MarketDataClient = class {
       this.reconnectAttempts++;
       const delay = Math.min(1e3 * Math.pow(2, this.reconnectAttempts), 3e4);
       setTimeout(() => {
-        this.connect().catch(() => {
-        });
+        this.connect().catch(() => {});
       }, delay);
     }
   }
@@ -476,7 +476,7 @@ var MySQLClient = class {
       port: parseInt(process.env.DB_PORT || "3306"),
       waitForConnections: true,
       connectionLimit: 10,
-      queueLimit: 0
+      queueLimit: 0,
     };
     this.pool = mysql.createPool(dbConfig);
   }
@@ -486,11 +486,11 @@ var MySQLClient = class {
     try {
       const [existing] = await connection.execute(
         "SELECT uuid FROM trade_signals WHERE uuid = ?",
-        [signal.uuid]
+        [signal.uuid],
       );
       if (Array.isArray(existing) && existing.length > 0) {
         logger.info(
-          `Trade signal ${signal.uuid} already exists, skipping creation`
+          `Trade signal ${signal.uuid} already exists, skipping creation`,
         );
         await connection.rollback();
         return signal;
@@ -520,12 +520,12 @@ var MySQLClient = class {
           signal.performance_rating || null,
           signal.created_at,
           // Keep as ISO string
-          signal.status
-        ]
+          signal.status,
+        ],
       );
       await connection.commit();
       logger.info(
-        `Trade signal ${signal.uuid} successfully created in database`
+        `Trade signal ${signal.uuid} successfully created in database`,
       );
       return signal;
     } catch (error) {
@@ -541,7 +541,7 @@ var MySQLClient = class {
     try {
       const [rows] = await connection.execute(
         "SELECT * FROM trade_signals WHERE uuid = ?",
-        [uuid]
+        [uuid],
       );
       const signals = rows;
       return signals.length > 0 ? signals[0] : void 0;
@@ -552,11 +552,13 @@ var MySQLClient = class {
   async updateTradeSignal(uuid, updates) {
     const connection = await this.pool.getConnection();
     try {
-      const setClause = Object.keys(updates).map((key) => `${key} = ?`).join(", ");
+      const setClause = Object.keys(updates)
+        .map((key) => `${key} = ?`)
+        .join(", ");
       const values = Object.values(updates);
       await connection.execute(
         `UPDATE trade_signals SET ${setClause} WHERE uuid = ?`,
-        [...values, uuid]
+        [...values, uuid],
       );
     } finally {
       connection.release();
@@ -567,7 +569,7 @@ var MySQLClient = class {
     try {
       await connection.execute(
         "UPDATE trade_signals SET status = ?, updatedAt = CURRENT_TIMESTAMP WHERE uuid = ?",
-        [status, uuid]
+        [status, uuid],
       );
     } finally {
       connection.release();
@@ -577,7 +579,7 @@ var MySQLClient = class {
     const connection = await this.pool.getConnection();
     try {
       const [rows] = await connection.execute(
-        'SELECT * FROM trade_signals WHERE status = "active"'
+        'SELECT * FROM trade_signals WHERE status = "active"',
       );
       return rows;
     } finally {
@@ -589,7 +591,7 @@ var MySQLClient = class {
     try {
       const [rows] = await connection.execute(
         "SELECT * FROM trade_signals WHERE channel_id = ?",
-        [channelId]
+        [channelId],
       );
       return rows;
     } finally {
@@ -626,8 +628,8 @@ var RedisClient = class {
             return Math.min(retries * 1e3, 3e3);
           }
           return false;
-        }
-      }
+        },
+      },
     });
     this.client.on("error", (err) => {
       logger.error("Redis connection error:", err.message);
@@ -646,7 +648,7 @@ var RedisClient = class {
     this.createClient();
     if (!this.client) {
       logger.error(
-        "Failed to create Redis client. Application cannot continue without Redis. Exiting..."
+        "Failed to create Redis client. Application cannot continue without Redis. Exiting...",
       );
       process.exit(1);
     }
@@ -714,10 +716,7 @@ var RedisClient = class {
     try {
       return await this.client.keys(pattern);
     } catch (error) {
-      logger.error(
-        "Failed to get Redis keys by pattern:",
-        error.message
-      );
+      logger.error("Failed to get Redis keys by pattern:", error.message);
       throw error;
     }
   }
@@ -731,10 +730,7 @@ var RedisClient = class {
       const usedMemoryMatch = info.match(/used_memory_human:(.+)/);
       return usedMemoryMatch ? usedMemoryMatch[1].trim() : "0B";
     } catch (error) {
-      logger.error(
-        "Failed to get Redis memory usage:",
-        error.message
-      );
+      logger.error("Failed to get Redis memory usage:", error.message);
       throw error;
     }
   }
@@ -742,8 +738,7 @@ var RedisClient = class {
 
 // server/services/performance-metrics.ts
 var PerformanceCalculator = class {
-  constructor() {
-  }
+  constructor() {}
   /**
    * Calculate simple performance metrics for a trade signal
    */
@@ -754,23 +749,25 @@ var PerformanceCalculator = class {
     const leverage = parseFloat(signal.leverage.toString()) || 1;
     let currentPerformance = 0;
     if (signal.signal_type === "BUY" || signal.signal_type === "buy") {
-      currentPerformance = (currentPrice - entryPrice) / entryPrice * leverage * 100;
+      currentPerformance =
+        ((currentPrice - entryPrice) / entryPrice) * leverage * 100;
     } else {
-      currentPerformance = (entryPrice - currentPrice) / entryPrice * leverage * 100;
+      currentPerformance =
+        ((entryPrice - currentPrice) / entryPrice) * leverage * 100;
     }
     const riskRewardRatio = this.calculateRiskRewardRatio(
       entryPrice,
       targetPrice,
-      stopLossPrice
+      stopLossPrice,
     );
     const signalStrength = this.calculateSignalStrength(
       riskRewardRatio,
-      leverage
+      leverage,
     );
     return {
       currentPerformance,
       riskRewardRatio,
-      signalStrength
+      signalStrength,
     };
   }
   /**
@@ -784,24 +781,24 @@ var PerformanceCalculator = class {
     const riskRewardRatio = this.calculateRiskRewardRatio(
       entryPrice,
       targetPrice,
-      stopLossPrice
+      stopLossPrice,
     );
     const signalStrength = this.calculateSignalStrength(
       riskRewardRatio,
-      leverage
+      leverage,
     );
     const marketTrend = this.determineMarketTrend(signal.signal_type);
     return {
       riskRewardRatio,
       signalStrength,
-      marketTrend
+      marketTrend,
     };
   }
   calculateRiskRewardRatio(entryPrice, targetPrice, stopLossPrice) {
     const potentialReward = Math.abs(targetPrice - entryPrice);
     const potentialRisk = Math.abs(entryPrice - stopLossPrice);
     if (potentialRisk === 0) return 0;
-    return Math.round(potentialReward / potentialRisk * 100) / 100;
+    return Math.round((potentialReward / potentialRisk) * 100) / 100;
   }
   calculateSignalStrength(riskRewardRatio, leverage) {
     let strength = 1;
@@ -815,7 +812,11 @@ var PerformanceCalculator = class {
   determineMarketTrend(signalType) {
     if (signalType === "BUY" || signalType === "buy" || signalType === "LONG") {
       return "bullish";
-    } else if (signalType === "SELL" || signalType === "sell" || signalType === "SHORT") {
+    } else if (
+      signalType === "SELL" ||
+      signalType === "sell" ||
+      signalType === "SHORT"
+    ) {
       return "bearish";
     }
     return "neutral";
@@ -857,15 +858,23 @@ var SignalMonitor = class {
         const leverage = parseFloat(signalData.leverage);
         let newStatus = signalData.status;
         let performance = 0;
-        if (signalData.signal_type === "BUY" || signalData.signal_type === "buy") {
-          performance = (currentPrice - entryPrice) / entryPrice * leverage * 100;
+        if (
+          signalData.signal_type === "BUY" ||
+          signalData.signal_type === "buy"
+        ) {
+          performance =
+            ((currentPrice - entryPrice) / entryPrice) * leverage * 100;
           if (currentPrice >= targetPrice) {
             newStatus = "tp_hit";
           } else if (currentPrice <= stopLossPrice) {
             newStatus = "sl_hit";
           }
-        } else if (signalData.signal_type === "SELL" || signalData.signal_type === "sell") {
-          performance = (entryPrice - currentPrice) / entryPrice * leverage * 100;
+        } else if (
+          signalData.signal_type === "SELL" ||
+          signalData.signal_type === "sell"
+        ) {
+          performance =
+            ((entryPrice - currentPrice) / entryPrice) * leverage * 100;
           if (currentPrice <= targetPrice) {
             newStatus = "tp_hit";
           } else if (currentPrice >= stopLossPrice) {
@@ -875,7 +884,7 @@ var SignalMonitor = class {
         const createdAt = new Date(signalData.created_at);
         const ttlHours = parseInt(signalData.ttl.replace("h", ""));
         const expiryTime = new Date(
-          createdAt.getTime() + ttlHours * 60 * 60 * 1e3
+          createdAt.getTime() + ttlHours * 60 * 60 * 1e3,
         );
         if (/* @__PURE__ */ new Date() > expiryTime && newStatus === "active") {
           newStatus = "expired";
@@ -887,7 +896,7 @@ var SignalMonitor = class {
               symbol,
               currentPrice,
               newStatus,
-              signalData
+              signalData,
             );
             await this.redisClient.deleteSignal(key);
           } else {
@@ -899,13 +908,13 @@ var SignalMonitor = class {
             type: "TRADE_SIGNAL_UPDATE",
             channel_id: channelIdNum,
             asset: symbol,
-            signals: []
+            signals: [],
           });
         }
         const channelUpdate = channelUpdates.get(channelIdNum);
         const metrics = this.performanceCalculator.calculateMetricsForStorage(
           signalData,
-          currentPrice
+          currentPrice,
         );
         const marketTrend = this.determineMarketTrend(symbol, currentPrice);
         channelUpdate.signals.push({
@@ -916,7 +925,7 @@ var SignalMonitor = class {
           status: newStatus,
           riskRewardRatio: metrics.riskRewardRatio,
           signalStrength: metrics.signalStrength,
-          marketTrend
+          marketTrend,
         });
       }
       for (const update of Array.from(channelUpdates.values())) {
@@ -963,19 +972,25 @@ var SignalMonitor = class {
         for (const symbol of Array.from(this.priceHistory.keys())) {
           const history = this.priceHistory.get(symbol);
           const recentHistory = history.filter(
-            (point) => point.timestamp > fiveMinutesAgo
+            (point) => point.timestamp > fiveMinutesAgo,
           );
           this.priceHistory.set(symbol, recentHistory);
         }
       },
-      5 * 60 * 1e3
+      5 * 60 * 1e3,
     );
   }
-  async closeSignalWithMetrics(uuid, symbol, currentPrice, newStatus, signalData) {
+  async closeSignalWithMetrics(
+    uuid,
+    symbol,
+    currentPrice,
+    newStatus,
+    signalData,
+  ) {
     try {
       const metrics = this.performanceCalculator.calculateMetrics(
         signalData,
-        currentPrice
+        currentPrice,
       );
       const marketTrend = this.determineMarketTrend(symbol, currentPrice);
       await this.storage.updateTradeSignal(uuid, {
@@ -985,17 +1000,31 @@ var SignalMonitor = class {
         updatedAt: /* @__PURE__ */ new Date(),
         riskRewardRatio: metrics.riskRewardRatio,
         signalStrength: metrics.signalStrength,
-        marketTrend
+        marketTrend,
       });
       if (this.kafkaProducer) {
         try {
-          const entryPrice = typeof signalData.entry_price === "string" ? parseFloat(signalData.entry_price) : signalData.entry_price;
-          const leverage = (typeof signalData.leverage === "string" ? parseFloat(signalData.leverage) : signalData.leverage) || 1;
+          const entryPrice =
+            typeof signalData.entry_price === "string"
+              ? parseFloat(signalData.entry_price)
+              : signalData.entry_price;
+          const leverage =
+            (typeof signalData.leverage === "string"
+              ? parseFloat(signalData.leverage)
+              : signalData.leverage) || 1;
           let performance = 0;
-          if (signalData.signal_type === "BUY" || signalData.signal_type === "buy") {
-            performance = (currentPrice - entryPrice) / entryPrice * leverage * 100;
-          } else if (signalData.signal_type === "SELL" || signalData.signal_type === "sell") {
-            performance = (entryPrice - currentPrice) / entryPrice * leverage * 100;
+          if (
+            signalData.signal_type === "BUY" ||
+            signalData.signal_type === "buy"
+          ) {
+            performance =
+              ((currentPrice - entryPrice) / entryPrice) * leverage * 100;
+          } else if (
+            signalData.signal_type === "SELL" ||
+            signalData.signal_type === "sell"
+          ) {
+            performance =
+              ((entryPrice - currentPrice) / entryPrice) * leverage * 100;
           }
           await this.kafkaProducer.publishSignalClosed({
             uuid,
@@ -1006,18 +1035,20 @@ var SignalMonitor = class {
             performance: performance.toFixed(2) + "%",
             riskRewardRatio: metrics.riskRewardRatio,
             signalStrength: metrics.signalStrength,
-            status: newStatus
+            status: newStatus,
           });
-          console.log(`\u2713 Published SIGNAL_CLOSED event for ${uuid} to Kafka`);
+          console.log(
+            `\u2713 Published SIGNAL_CLOSED event for ${uuid} to Kafka`,
+          );
         } catch (kafkaError) {
           console.error(
             `Failed to publish SIGNAL_CLOSED event for ${uuid}:`,
-            kafkaError
+            kafkaError,
           );
         }
       }
       console.log(
-        `\u2713 Signal ${uuid} closed with status ${newStatus} and simple metrics calculated`
+        `\u2713 Signal ${uuid} closed with status ${newStatus} and simple metrics calculated`,
       );
     } catch (error) {
       console.error(`Error calculating metrics for signal ${uuid}:`, error);
@@ -1025,7 +1056,7 @@ var SignalMonitor = class {
         status: newStatus,
         closedAt: /* @__PURE__ */ new Date(),
         executionPrice: currentPrice,
-        updatedAt: /* @__PURE__ */ new Date()
+        updatedAt: /* @__PURE__ */ new Date(),
       });
     }
   }
@@ -1035,7 +1066,7 @@ var SignalMonitor = class {
     const recentHistory = history.slice(-5);
     const firstPrice = recentHistory[0].price;
     const lastPrice = recentHistory[recentHistory.length - 1].price;
-    const changePercent = (lastPrice - firstPrice) / firstPrice * 100;
+    const changePercent = ((lastPrice - firstPrice) / firstPrice) * 100;
     if (changePercent > 0.5) return "bullish";
     if (changePercent < -0.5) return "bearish";
     return "neutral";
@@ -1076,10 +1107,10 @@ var insertTradeSignalSchema = z.object({
     "12h",
     "24h",
     "48h",
-    "72h"
+    "72h",
   ]),
   created_at: z.string(),
-  status: z.enum(["active", "sl_hit", "tp_hit", "expired"]).default("active")
+  status: z.enum(["active", "sl_hit", "tp_hit", "expired"]).default("active"),
 });
 var signalCreatedEventSchema = z.object({
   version: z.string(),
@@ -1101,8 +1132,8 @@ var signalCreatedEventSchema = z.object({
     trade_price: z.number().optional(),
     performance_rating: z.number().optional(),
     ttl: z.string(),
-    created_at: z.string()
-  })
+    created_at: z.string(),
+  }),
 });
 var signalClosedEventSchema = z.object({
   version: z.string(),
@@ -1117,8 +1148,8 @@ var signalClosedEventSchema = z.object({
     performance: z.string(),
     riskRewardRatio: z.number(),
     signalStrength: z.number(),
-    status: z.enum(["tp_hit", "sl_hit", "expired"])
-  })
+    status: z.enum(["tp_hit", "sl_hit", "expired"]),
+  }),
 });
 var marketDataUpdateSchema = z.tuple([
   z.literal("nxt_price_update"),
@@ -1135,13 +1166,13 @@ var marketDataUpdateSchema = z.tuple([
     // low
     q: z.string(),
     // quote volume
-    t: z.number()
+    t: z.number(),
     // timestamp
-  })
+  }),
 ]);
 var traderConnectionSchema = z.object({
   jwt: z.string(),
-  channel_id: z.number()
+  channel_id: z.number(),
 });
 var signalUpdateMessageSchema = z.object({
   type: z.literal("TRADE_SIGNAL_UPDATE"),
@@ -1156,9 +1187,12 @@ var signalUpdateMessageSchema = z.object({
       status: z.enum(["active", "sl_hit", "tp_hit", "expired"]),
       riskRewardRatio: z.number().nullable().optional(),
       signalStrength: z.number().nullable().optional(),
-      marketTrend: z.enum(["bullish", "bearish", "neutral"]).nullable().optional()
-    })
-  )
+      marketTrend: z
+        .enum(["bullish", "bearish", "neutral"])
+        .nullable()
+        .optional(),
+    }),
+  ),
 });
 
 // server/utils/jwt.ts
@@ -1181,8 +1215,8 @@ var WebSocketServer = class {
     this.io = new SocketIOServer(httpServer2, {
       cors: {
         origin: "*",
-        methods: ["GET", "POST"]
-      }
+        methods: ["GET", "POST"],
+      },
     });
     this.setupEventHandlers();
     this.signalMonitor.onSignalUpdate(this.handleSignalUpdate.bind(this));
@@ -1201,27 +1235,32 @@ var WebSocketServer = class {
             const trader = {
               id: socket.id,
               channelId: connectionData.channel_id,
-              socket
+              socket,
             };
             this.connectedTraders.set(socket.id, trader);
             if (!this.channelConnections.has(connectionData.channel_id)) {
-              this.channelConnections.set(connectionData.channel_id, /* @__PURE__ */ new Set());
+              this.channelConnections.set(
+                connectionData.channel_id,
+                /* @__PURE__ */ new Set(),
+              );
             }
-            this.channelConnections.get(connectionData.channel_id).add(socket.id);
+            this.channelConnections
+              .get(connectionData.channel_id)
+              .add(socket.id);
             socket.emit("authenticated", { success: true });
             logger.info(
-              `Trader authenticated for channel ${connectionData.channel_id}`
+              `Trader authenticated for channel ${connectionData.channel_id}`,
             );
           } else {
             socket.emit("authentication_failed", {
-              error: "Invalid JWT token"
+              error: "Invalid JWT token",
             });
             socket.disconnect();
           }
         } catch (error) {
           logger.error("Authentication error:", error);
           socket.emit("authentication_failed", {
-            error: "Authentication failed"
+            error: "Authentication failed",
           });
           socket.disconnect();
         }
@@ -1231,7 +1270,7 @@ var WebSocketServer = class {
         if (trader) {
           this.connectedTraders.delete(socket.id);
           const channelConnections = this.channelConnections.get(
-            trader.channelId
+            trader.channelId,
           );
           if (channelConnections) {
             channelConnections.delete(socket.id);
@@ -1268,7 +1307,7 @@ var WebSocketServer = class {
         // This would be calculated from actual signal data
         lastSignal: "2 minutes ago",
         // This would be calculated from actual signal data
-        status: connections.size > 0 ? "active" : "idle"
+        status: connections.size > 0 ? "active" : "idle",
       });
     });
     return channels;
@@ -1283,7 +1322,7 @@ app.get("/", (req, res) => {
   res.json({
     status: "running",
     service: "Trade Signal Monitor Backend",
-    timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    timestamp: /* @__PURE__ */ new Date().toISOString(),
   });
 });
 (async () => {
@@ -1295,7 +1334,7 @@ app.get("/", (req, res) => {
     } catch (error) {
       logger.error(
         "CRITICAL: MySQL client initialization failed!",
-        error.message
+        error.message,
       );
       process.exit(1);
     }
@@ -1305,10 +1344,7 @@ app.get("/", (req, res) => {
       await redisClient.connect();
       logger.info("Redis client connected successfully");
     } catch (error) {
-      logger.error(
-        "CRITICAL: Redis connection failed!",
-        error.message
-      );
+      logger.error("CRITICAL: Redis connection failed!", error.message);
       process.exit(1);
     }
     logger.info("Connecting to Kafka producer...");
@@ -1320,10 +1356,10 @@ app.get("/", (req, res) => {
     } catch (error) {
       logger.warn(
         "WARNING: Kafka producer connection failed - continuing without event publishing:",
-        error.message
+        error.message,
       );
       logger.info(
-        "System will continue to work but SIGNAL_CLOSED events won't be published to Kafka"
+        "System will continue to work but SIGNAL_CLOSED events won't be published to Kafka",
       );
       kafkaProducer = null;
     }
@@ -1331,7 +1367,7 @@ app.get("/", (req, res) => {
     const signalMonitor = new SignalMonitor(
       mysqlClient,
       redisClient,
-      kafkaProducer
+      kafkaProducer,
     );
     logger.info("Initializing WebSocket server...");
     const wsServer = new WebSocketServer(httpServer, signalMonitor);
@@ -1344,7 +1380,7 @@ app.get("/", (req, res) => {
     } catch (error) {
       logger.error(
         "CRITICAL: Market data WebSocket connection failed!",
-        error.message
+        error.message,
       );
       process.exit(1);
     }
@@ -1354,15 +1390,15 @@ app.get("/", (req, res) => {
       kafkaConsumer = new KafkaConsumer(mysqlClient, redisClient);
       await kafkaConsumer.connect();
       logger.info(
-        "Kafka consumer connected and listening for SIGNAL_CREATED events"
+        "Kafka consumer connected and listening for SIGNAL_CREATED events",
       );
     } catch (error) {
       logger.warn(
         "WARNING: Kafka consumer connection failed - continuing without external signal events:",
-        error.message
+        error.message,
       );
       logger.info(
-        "System will continue to work but won't receive external SIGNAL_CREATED events"
+        "System will continue to work but won't receive external SIGNAL_CREATED events",
       );
       kafkaConsumer = null;
     }
