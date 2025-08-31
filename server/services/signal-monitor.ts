@@ -165,6 +165,10 @@ export class SignalMonitor {
     this.updateCallbacks.add(callback);
   }
 
+  async getActiveTradeSignals(): Promise<TradeSignal[]> {
+    return await this.storage.getActiveTradeSignals();
+  }
+
   removeSignalUpdateCallback(
     callback: (message: SignalUpdateMessage) => void,
   ): void {

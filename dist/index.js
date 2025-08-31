@@ -355,8 +355,8 @@ var KafkaProducer = class {
           execution_price: eventData.execution_price,
           closed_at: eventData.closed_at.toISOString(),
           performance: eventData.performance,
-          riskRewardRatio: eventData.riskRewardRatio,
-          signalStrength: eventData.signalStrength,
+          risk_reward_ratio: eventData.risk_reward_ratio,
+          signal_strength: eventData.signal_strength,
           status: eventData.status,
         },
       };
@@ -568,7 +568,7 @@ var MySQLClient = class {
     const connection = await this.pool.getConnection();
     try {
       await connection.execute(
-        "UPDATE trade_signals SET status = ?, updatedAt = CURRENT_TIMESTAMP WHERE uuid = ?",
+        "UPDATE trade_signals SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE uuid = ?",
         [status, uuid],
       );
     } finally {
@@ -923,16 +923,16 @@ var SignalMonitor = class {
           current_price: currentPrice.toString(),
           performance: performance.toFixed(2),
           status: newStatus,
-          riskRewardRatio: metrics.riskRewardRatio,
-          signalStrength: metrics.signalStrength,
-          marketTrend,
+          risk_reward_ratio: metrics.riskRewardRatio,
+          signal_strength: metrics.signalStrength,
+          market_trend: marketTrend,
         });
       }
       for (const update of Array.from(channelUpdates.values())) {
         this.broadcastUpdate(update);
       }
     } catch (error) {
-      console.error("Error checking signals for asset:", error);
+      logger.error("Error checking signals for asset:", error);
     }
   }
   broadcastUpdate(message) {
@@ -940,12 +940,15 @@ var SignalMonitor = class {
       try {
         callback(message);
       } catch (error) {
-        console.error("Error in signal update callback:", error);
+        logger.error("Error in signal update callback:", error);
       }
     });
   }
   onSignalUpdate(callback) {
     this.updateCallbacks.add(callback);
+  }
+  async getActiveTradeSignals() {
+    return await this.storage.getActiveTradeSignals();
   }
   removeSignalUpdateCallback(callback) {
     this.updateCallbacks.delete(callback);
@@ -995,12 +998,12 @@ var SignalMonitor = class {
       const marketTrend = this.determineMarketTrend(symbol, currentPrice);
       await this.storage.updateTradeSignal(uuid, {
         status: newStatus,
-        closedAt: /* @__PURE__ */ new Date(),
-        executionPrice: currentPrice,
-        updatedAt: /* @__PURE__ */ new Date(),
-        riskRewardRatio: metrics.riskRewardRatio,
-        signalStrength: metrics.signalStrength,
-        marketTrend,
+        closed_at: /* @__PURE__ */ new Date(),
+        execution_price: currentPrice,
+        updated_at: /* @__PURE__ */ new Date(),
+        risk_reward_ratio: metrics.riskRewardRatio,
+        signal_strength: metrics.signalStrength,
+        market_trend: marketTrend,
       });
       if (this.kafkaProducer) {
         try {
@@ -1033,30 +1036,28 @@ var SignalMonitor = class {
             execution_price: currentPrice,
             closed_at: /* @__PURE__ */ new Date(),
             performance: performance.toFixed(2) + "%",
-            riskRewardRatio: metrics.riskRewardRatio,
-            signalStrength: metrics.signalStrength,
+            risk_reward_ratio: metrics.riskRewardRatio,
+            signal_strength: metrics.signalStrength,
             status: newStatus,
           });
-          console.log(
-            `\u2713 Published SIGNAL_CLOSED event for ${uuid} to Kafka`,
-          );
+          logger.info(`Published SIGNAL_CLOSED event for ${uuid} to Kafka`);
         } catch (kafkaError) {
-          console.error(
+          logger.error(
             `Failed to publish SIGNAL_CLOSED event for ${uuid}:`,
             kafkaError,
           );
         }
       }
-      console.log(
-        `\u2713 Signal ${uuid} closed with status ${newStatus} and simple metrics calculated`,
+      logger.info(
+        `Signal ${uuid} closed with status ${newStatus} and simple metrics calculated`,
       );
     } catch (error) {
-      console.error(`Error calculating metrics for signal ${uuid}:`, error);
+      logger.error(`Error calculating metrics for signal ${uuid}:`, error);
       await this.storage.updateTradeSignal(uuid, {
         status: newStatus,
-        closedAt: /* @__PURE__ */ new Date(),
-        executionPrice: currentPrice,
-        updatedAt: /* @__PURE__ */ new Date(),
+        closed_at: /* @__PURE__ */ new Date(),
+        execution_price: currentPrice,
+        updated_at: /* @__PURE__ */ new Date(),
       });
     }
   }
@@ -1146,8 +1147,8 @@ var signalClosedEventSchema = z.object({
     execution_price: z.number(),
     closed_at: z.string(),
     performance: z.string(),
-    riskRewardRatio: z.number(),
-    signalStrength: z.number(),
+    risk_reward_ratio: z.number(),
+    signal_strength: z.number(),
     status: z.enum(["tp_hit", "sl_hit", "expired"]),
   }),
 });
@@ -1185,9 +1186,9 @@ var signalUpdateMessageSchema = z.object({
       current_price: z.string(),
       performance: z.string(),
       status: z.enum(["active", "sl_hit", "tp_hit", "expired"]),
-      riskRewardRatio: z.number().nullable().optional(),
-      signalStrength: z.number().nullable().optional(),
-      marketTrend: z
+      risk_reward_ratio: z.number().nullable().optional(),
+      signal_strength: z.number().nullable().optional(),
+      market_trend: z
         .enum(["bullish", "bearish", "neutral"])
         .nullable()
         .optional(),
@@ -1297,16 +1298,42 @@ var WebSocketServer = class {
   getConnectionCount() {
     return this.connectedTraders.size;
   }
-  getActiveChannels() {
+  async getActiveChannels() {
     const channels = [];
+    const activeSignals = await this.signalMonitor.getActiveTradeSignals();
     this.channelConnections.forEach((connections, channelId) => {
+      const channelActiveSignals = activeSignals.filter(
+        (signal) => signal.channel_id === channelId,
+      );
+      let lastSignalTime = null;
+      if (channelActiveSignals.length > 0) {
+        const mostRecentSignal = channelActiveSignals.reduce(
+          (latest, signal) => {
+            const signalTime = new Date(signal.created_at);
+            const latestTime = new Date(latest.created_at);
+            return signalTime > latestTime ? signal : latest;
+          },
+        );
+        const timeDiff =
+          Date.now() - new Date(mostRecentSignal.created_at).getTime();
+        const minutes = Math.floor(timeDiff / (1e3 * 60));
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+        if (days > 0) {
+          lastSignalTime = `${days} day${days > 1 ? "s" : ""} ago`;
+        } else if (hours > 0) {
+          lastSignalTime = `${hours} hour${hours > 1 ? "s" : ""} ago`;
+        } else if (minutes > 0) {
+          lastSignalTime = `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
+        } else {
+          lastSignalTime = "Just now";
+        }
+      }
       channels.push({
         id: channelId,
-        connectedTraders: connections.size,
-        activeSignals: 0,
-        // This would be calculated from actual signal data
-        lastSignal: "2 minutes ago",
-        // This would be calculated from actual signal data
+        connected_traders: connections.size,
+        active_signals: channelActiveSignals.length,
+        last_signal: lastSignalTime,
         status: connections.size > 0 ? "active" : "idle",
       });
     });

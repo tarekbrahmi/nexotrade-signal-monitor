@@ -1,11 +1,11 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { MySQLClient } from "./services/mysql-client";
+import { WebSocketServer } from "./services/websocket-server";
 import { KafkaConsumer } from "./services/kafka-consumer";
 import { MarketDataClient } from "./services/market-data-client";
-import { MySQLClient } from "./services/mysql-client";
-import { RedisClient } from "./services/redis-client";
 import { SignalMonitor } from "./services/signal-monitor";
-import { WebSocketServer } from "./services/websocket-server";
+import { RedisClient } from "./services/redis-client";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -101,7 +101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/dashboard/channels", async (req, res) => {
     try {
-      const channels = wsServer.getActiveChannels();
+      const channels = await wsServer.getActiveChannels();
       res.json(channels);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch active channels" });

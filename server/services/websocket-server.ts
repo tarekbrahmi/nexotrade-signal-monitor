@@ -115,27 +115,65 @@ export class WebSocketServer {
     return this.connectedTraders.size;
   }
 
-  getActiveChannels(): Array<{
-    id: number;
-    connectedTraders: number;
-    activeSignals: number;
-    lastSignal: string;
-    status: string;
-  }> {
+  async getActiveChannels(): Promise<
+    Array<{
+      id: number;
+      connected_traders: number;
+      active_signals: number;
+      last_signal: string | null;
+      status: string;
+    }>
+  > {
     const channels: Array<{
       id: number;
-      connectedTraders: number;
-      activeSignals: number;
-      lastSignal: string;
+      connected_traders: number;
+      active_signals: number;
+      last_signal: string | null;
       status: string;
     }> = [];
 
+    // Get all active signals from storage to calculate real data
+    const activeSignals = await this.signalMonitor.getActiveTradeSignals();
+
     this.channelConnections.forEach((connections, channelId) => {
+      // Calculate actual active signals for this channel
+      const channelActiveSignals = activeSignals.filter(
+        (signal) => signal.channel_id === channelId,
+      );
+
+      // Calculate last signal timestamp for this channel
+      let lastSignalTime: string | null = null;
+      if (channelActiveSignals.length > 0) {
+        const mostRecentSignal = channelActiveSignals.reduce(
+          (latest, signal) => {
+            const signalTime = new Date(signal.created_at);
+            const latestTime = new Date(latest.created_at);
+            return signalTime > latestTime ? signal : latest;
+          },
+        );
+
+        const timeDiff =
+          Date.now() - new Date(mostRecentSignal.created_at).getTime();
+        const minutes = Math.floor(timeDiff / (1000 * 60));
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+
+        if (days > 0) {
+          lastSignalTime = `${days} day${days > 1 ? "s" : ""} ago`;
+        } else if (hours > 0) {
+          lastSignalTime = `${hours} hour${hours > 1 ? "s" : ""} ago`;
+        } else if (minutes > 0) {
+          lastSignalTime = `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
+        } else {
+          lastSignalTime = "Just now";
+        }
+      }
+
       channels.push({
         id: channelId,
-        connectedTraders: connections.size,
-        activeSignals: 0, // This would be calculated from actual signal data
-        lastSignal: "2 minutes ago", // This would be calculated from actual signal data
+        connected_traders: connections.size,
+        active_signals: channelActiveSignals.length,
+        last_signal: lastSignalTime,
         status: connections.size > 0 ? "active" : "idle",
       });
     });
