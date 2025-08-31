@@ -63,6 +63,7 @@ export class KafkaProducer {
     uuid: string;
     trader_id: string;
     channel_id: number;
+    channel_uuid : string;
     execution_price: number;
     closed_at: Date;
     performance: string;
@@ -83,12 +84,34 @@ export class KafkaProducer {
           uuid: eventData.uuid,
           trader_id: eventData.trader_id,
           channel_id: eventData.channel_id,
+          channel_uuid: eventData.channel_uuid,
           execution_price: eventData.execution_price,
           closed_at: eventData.closed_at.toISOString(),
           performance: eventData.performance,
           risk_reward_ratio: eventData.risk_reward_ratio,
           signal_strength: eventData.signal_strength,
           status: eventData.status,
+
+        //           "uuid",
+        // "trader_id",
+        // "channel_id",
+        // "execution_price",
+        // "closed_at",
+        // "performance",
+        // "risk_reward_ratio",
+        // "signal_strength",
+        // "status"
+
+        // needed by the payment ms
+
+        //         "uuid",
+        // "trader_id",
+        // "channel_id",
+        // "channel_uuid",
+        // "execution_price",
+        // "profit_loss",
+        // "success",
+        // "closed_at"
         },
       };
 

@@ -6,11 +6,15 @@
   "properties": {
     "version": {
       "type": "string",
-      "enum": ["1.0.0"]
+      "enum": [
+        "1.0.0"
+      ]
     },
     "eventType": {
       "type": "string",
-      "enum": ["SIGNAL_CLOSED"]
+      "enum": [
+        "SIGNAL_CLOSED"
+      ]
     },
     "timestamp": {
       "type": "string",
@@ -28,6 +32,9 @@
         },
         "channel_id": {
           "type": "integer"
+        },
+        "channel_uuid": {
+          "type": "string"
         },
         "execution_price": {
           "type": "number"
@@ -49,13 +56,18 @@
         },
         "status": {
           "type": "string",
-          "enum": ["tp_hit", "sl_hit", "expired"]
+          "enum": [
+            "tp_hit",
+            "sl_hit",
+            "expired"
+          ]
         }
       },
       "required": [
         "uuid",
         "trader_id",
         "channel_id",
+        "channel_uuid",
         "execution_price",
         "closed_at",
         "performance",
@@ -65,5 +77,10 @@
       ]
     }
   },
-  "required": ["version", "eventType", "timestamp", "data"]
+  "required": [
+    "version",
+    "eventType",
+    "timestamp",
+    "data"
+  ]
 }

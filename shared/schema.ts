@@ -154,6 +154,7 @@ export const signalClosedEventSchema = z.object({
     uuid: z.string(),
     trader_id: z.string(),
     channel_id: z.number(),
+    channel_uuid : z.string(),
     execution_price: z.number(),
     closed_at: z.string(),
     performance: z.string(),

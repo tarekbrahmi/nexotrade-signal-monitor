@@ -274,6 +274,7 @@ export class SignalMonitor {
             uuid: uuid,
             trader_id: signalData.trader_id,
             channel_id: signalData.channel_id,
+            channel_uuid: signalData.channel_uuid,
             execution_price: currentPrice,
             closed_at: new Date(),
             performance: performance.toFixed(2) + "%",
