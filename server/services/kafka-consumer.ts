@@ -1,8 +1,8 @@
 import { Kafka, Consumer } from 'kafkajs';
-import { SignalCreatedEvent, signalCreatedEventSchema } from '@shared/schema';
 import { IStorage } from '../storage';
 import { RedisClient } from './redis-client';
 import { SignalMonitor } from './signal-monitor';
+import { StartupSyncService } from './startup-sync';
 
 // Topics configuration
 const KAFKA_TOPICS = {
@@ -53,6 +53,10 @@ export class KafkaConsumer {
       console.warn('Kafka consumer is already running');
       return;
     }
+
+    // Run startup synchronization before starting consumer
+    const startupSync = new StartupSyncService(this.storage, this.redisClient);
+    await startupSync.synchronizeSignals();
 
     await this._consumerLoop();
   }
