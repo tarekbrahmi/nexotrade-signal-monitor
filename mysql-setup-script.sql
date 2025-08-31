@@ -36,6 +36,11 @@ CREATE TABLE IF NOT EXISTS trade_signals (
   executionPrice DECIMAL(20, 8) NULL,                   -- Internal execution price
   updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, -- Internal update timestamp
   
+  -- Simple Performance Metrics (no historical data dependency)
+  risk_reward_ratio DECIMAL(10, 4) NULL,                -- TP distance / SL distance ratio
+  signal_strength INT NULL,                              -- 1-5 signal strength rating
+  market_trend ENUM('bullish', 'bearish', 'neutral') NULL, -- Current market direction
+  
   -- Indexes for better query performance
   INDEX idx_uuid (uuid),                                -- Query by UUID
   INDEX idx_asset_symbol (asset_symbol),                -- Query by trading pair

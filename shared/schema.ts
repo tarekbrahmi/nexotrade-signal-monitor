@@ -22,6 +22,11 @@ export interface TradeSignal {
   closedAt?: Date | null;  // Internal field
   executionPrice?: number | null;  // Internal field
   updatedAt?: Date;  // Internal field
+  
+  // Simple Performance Metrics (no historical data dependency)
+  riskRewardRatio?: number | null;  // TP distance / SL distance (calculated from signal data)
+  signalStrength?: number | null;  // 1-5 signal strength rating
+  marketTrend?: 'bullish' | 'bearish' | 'neutral' | null;  // Current market direction
 }
 
 // Insert schema - EXACTLY matching external event data structure
@@ -65,6 +70,16 @@ export const insertTradeSignalSchema = z.object({
   created_at: z.string(),
   status: z.enum(["active", "sl_hit", "tp_hit", "expired"]).default("active"),
 });
+
+// Simple Performance Metrics Interface (no historical data dependency)
+export interface PerformanceMetrics {
+  // Core Real-time Metrics
+  currentPerformance: number;  // Current P&L percentage
+  riskRewardRatio: number;  // TP distance / SL distance
+  signalStrength: number;  // 1-5 signal strength rating
+}
+
+
 
 export const signalCreatedEventSchema = z.object({
   version: z.string(),
@@ -118,6 +133,9 @@ export const signalUpdateMessageSchema = z.object({
     current_price: z.string(),
     performance: z.string(),
     status: z.enum(["active", "sl_hit", "tp_hit", "expired"]),
+    riskRewardRatio: z.number().nullable().optional(),
+    signalStrength: z.number().nullable().optional(),
+    marketTrend: z.enum(["bullish", "bearish", "neutral"]).nullable().optional(),
   })),
 });
 
@@ -126,3 +144,10 @@ export type SignalCreatedEvent = z.infer<typeof signalCreatedEventSchema>;
 export type MarketDataUpdate = z.infer<typeof marketDataUpdateSchema>;
 export type TraderConnection = z.infer<typeof traderConnectionSchema>;
 export type SignalUpdateMessage = z.infer<typeof signalUpdateMessageSchema>;
+
+// PricePoint interface for tracking price history
+export interface PricePoint {
+  timestamp: Date;
+  price: number;
+}
+
