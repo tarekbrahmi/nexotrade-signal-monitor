@@ -281,6 +281,7 @@ export class SignalMonitor {
             risk_reward_ratio: metrics.riskRewardRatio,
             signal_strength: metrics.signalStrength,
             status: newStatus as "tp_hit" | "sl_hit" | "expired",
+            success: newStatus === "tp_hit",
           });
 
           logger.info(`Published SIGNAL_CLOSED event for ${uuid} to Kafka`);

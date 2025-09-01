@@ -352,12 +352,14 @@ var KafkaProducer = class {
           uuid: eventData.uuid,
           trader_id: eventData.trader_id,
           channel_id: eventData.channel_id,
+          channel_uuid: eventData.channel_uuid,
           execution_price: eventData.execution_price,
           closed_at: eventData.closed_at.toISOString(),
           performance: eventData.performance,
           risk_reward_ratio: eventData.risk_reward_ratio,
           signal_strength: eventData.signal_strength,
           status: eventData.status,
+          success: eventData.success,
         },
       };
       const message = {
@@ -1033,12 +1035,14 @@ var SignalMonitor = class {
             uuid,
             trader_id: signalData.trader_id,
             channel_id: signalData.channel_id,
+            channel_uuid: signalData.channel_uuid,
             execution_price: currentPrice,
             closed_at: /* @__PURE__ */ new Date(),
             performance: performance.toFixed(2) + "%",
             risk_reward_ratio: metrics.riskRewardRatio,
             signal_strength: metrics.signalStrength,
             status: newStatus,
+            success: newStatus === "tp_hit",
           });
           logger.info(`Published SIGNAL_CLOSED event for ${uuid} to Kafka`);
         } catch (kafkaError) {
@@ -1144,12 +1148,14 @@ var signalClosedEventSchema = z.object({
     uuid: z.string(),
     trader_id: z.string(),
     channel_id: z.number(),
+    channel_uuid: z.string(),
     execution_price: z.number(),
     closed_at: z.string(),
     performance: z.string(),
     risk_reward_ratio: z.number(),
     signal_strength: z.number(),
     status: z.enum(["tp_hit", "sl_hit", "expired"]),
+    success: z.boolean(),
   }),
 });
 var marketDataUpdateSchema = z.tuple([

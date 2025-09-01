@@ -10,7 +10,7 @@
     },
     "eventType": {
       "type": "string",
-      "enum": ["SIGNAL_CREATED"]
+      "const": "SIGNAL_CREATED"
     },
     "timestamp": {
       "type": "string",

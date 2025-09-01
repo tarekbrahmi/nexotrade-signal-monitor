@@ -12,9 +12,7 @@
     },
     "eventType": {
       "type": "string",
-      "enum": [
-        "SIGNAL_CLOSED"
-      ]
+      "const": "SIGNAL_CLOSED"
     },
     "timestamp": {
       "type": "string",
@@ -61,6 +59,9 @@
             "sl_hit",
             "expired"
           ]
+        },
+        "success": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -73,7 +74,8 @@
         "performance",
         "risk_reward_ratio",
         "signal_strength",
-        "status"
+        "status",
+        "success"
       ]
     }
   },

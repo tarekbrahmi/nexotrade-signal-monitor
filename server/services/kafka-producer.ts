@@ -63,13 +63,14 @@ export class KafkaProducer {
     uuid: string;
     trader_id: string;
     channel_id: number;
-    channel_uuid : string;
+    channel_uuid: string;
     execution_price: number;
     closed_at: Date;
     performance: string;
     risk_reward_ratio: number;
     signal_strength: number;
     status: "tp_hit" | "sl_hit" | "expired";
+    success: boolean;
   }): Promise<void> {
     try {
       if (!this.producer || !this.isConnected) {
@@ -91,27 +92,7 @@ export class KafkaProducer {
           risk_reward_ratio: eventData.risk_reward_ratio,
           signal_strength: eventData.signal_strength,
           status: eventData.status,
-
-        //           "uuid",
-        // "trader_id",
-        // "channel_id",
-        // "execution_price",
-        // "closed_at",
-        // "performance",
-        // "risk_reward_ratio",
-        // "signal_strength",
-        // "status"
-
-        // needed by the payment ms
-
-        //         "uuid",
-        // "trader_id",
-        // "channel_id",
-        // "channel_uuid",
-        // "execution_price",
-        // "profit_loss",
-        // "success",
-        // "closed_at"
+          success: eventData.success,
         },
       };
 
