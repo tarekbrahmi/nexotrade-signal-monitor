@@ -100,6 +100,7 @@ export class SignalMonitor {
             await this.closeSignalWithMetrics(
               uuid,
               channelUUID,
+              channelIdNum,
               symbol,
               currentPrice,
               newStatus,
@@ -218,6 +219,7 @@ export class SignalMonitor {
   private async closeSignalWithMetrics(
     uuid: string,
     channelUUID: string,
+    channelID: number,
     symbol: string,
     currentPrice: number,
     newStatus: "active" | "sl_hit" | "tp_hit" | "expired",
@@ -275,7 +277,7 @@ export class SignalMonitor {
           await this.kafkaProducer.publishSignalClosed({
             uuid: uuid,
             trader_id: signalData.trader_id,
-            channel_id: signalData.channel_id,
+            channel_id: channelID,
             channel_uuid: channelUUID,
             execution_price: currentPrice,
             closed_at: new Date(),
