@@ -1,13 +1,9 @@
-import { Server as SocketIOServer } from "socket.io";
+import { SignalUpdateMessage, traderConnectionSchema } from "@shared/schema";
 import { Server as HTTPServer } from "http";
-import {
-  TraderConnection,
-  traderConnectionSchema,
-  SignalUpdateMessage,
-} from "@shared/schema";
+import { Server as SocketIOServer } from "socket.io";
 import { verifyJWT } from "../utils/jwt";
-import { SignalMonitor } from "./signal-monitor";
 import { logger } from "./logger";
+import { SignalMonitor } from "./signal-monitor";
 
 interface ConnectedTrader {
   id: string;

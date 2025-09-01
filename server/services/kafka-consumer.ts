@@ -195,7 +195,7 @@ export class KafkaConsumer {
         status: "active",
       });
 
-      const redisKey = `${data.channel_id}:${data.asset_symbol}:${data.uuid}`;
+      const redisKey = `${data.channel_id}:${data.channel_uuid}:${data.asset_symbol}:${data.uuid}`;
       const ttl = data.ttl || "24h";
       const hours = parseInt(ttl.replace("h", ""));
       const ttlSeconds = hours * 3600;
@@ -208,6 +208,7 @@ export class KafkaConsumer {
             entry_price: data.entry_price,
             target_price: data.target_price,
             stop_loss_price: data.stop_loss_price,
+            trader_id: data.trader_id,
             leverage: data.leverage,
             ttl: data.ttl,
             created_at: data.created_at,

@@ -43,7 +43,7 @@ export class SignalMonitor {
         const signalData = await this.redisClient.getSignal(key);
         if (!signalData) continue;
 
-        const [channelId, assetSymbol, uuid] = key.split(":");
+        const [channelId, channelUUID, assetSymbol, uuid] = key.split(":");
         const channelIdNum = parseInt(channelId);
 
         // Calculate performance using Binance futures formula
@@ -99,6 +99,7 @@ export class SignalMonitor {
           if (newStatus !== "active") {
             await this.closeSignalWithMetrics(
               uuid,
+              channelUUID,
               symbol,
               currentPrice,
               newStatus,
@@ -216,6 +217,7 @@ export class SignalMonitor {
 
   private async closeSignalWithMetrics(
     uuid: string,
+    channelUUID: string,
     symbol: string,
     currentPrice: number,
     newStatus: "active" | "sl_hit" | "tp_hit" | "expired",
@@ -274,7 +276,7 @@ export class SignalMonitor {
             uuid: uuid,
             trader_id: signalData.trader_id,
             channel_id: signalData.channel_id,
-            channel_uuid: signalData.channel_uuid,
+            channel_uuid: channelUUID,
             execution_price: currentPrice,
             closed_at: new Date(),
             performance: performance.toFixed(2) + "%",

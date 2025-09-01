@@ -59,7 +59,7 @@ var StartupSyncService = class {
           expiredSignals++;
           continue;
         }
-        const redisKey = `${signal.channel_id}:${signal.asset_symbol}:${signal.uuid}`;
+        const redisKey = `${signal.channel_id}:${signal.channel_uuid}:${signal.asset_symbol}:${signal.uuid}`;
         const existingSignal = await this.redisClient.getSignal(redisKey);
         if (!existingSignal) {
           const remainingTtlSeconds = Math.floor(
@@ -72,6 +72,7 @@ var StartupSyncService = class {
                 signal_type: signal.signal_type,
                 entry_price: signal.entry_price,
                 target_price: signal.target_price,
+                trader_id: signal.trader_id,
                 stop_loss_price: signal.stop_loss_price,
                 leverage: signal.leverage,
                 ttl: signal.ttl,
@@ -247,7 +248,7 @@ var KafkaConsumer = class {
         created_at: data.created_at,
         status: "active",
       });
-      const redisKey = `${data.channel_id}:${data.asset_symbol}:${data.uuid}`;
+      const redisKey = `${data.channel_id}:${data.channel_uuid}:${data.asset_symbol}:${data.uuid}`;
       const ttl = data.ttl || "24h";
       const hours = parseInt(ttl.replace("h", ""));
       const ttlSeconds = hours * 3600;
@@ -259,6 +260,7 @@ var KafkaConsumer = class {
             entry_price: data.entry_price,
             target_price: data.target_price,
             stop_loss_price: data.stop_loss_price,
+            trader_id: data.trader_id,
             leverage: data.leverage,
             ttl: data.ttl,
             created_at: data.created_at,
@@ -852,7 +854,7 @@ var SignalMonitor = class {
       for (const key of keys) {
         const signalData = await this.redisClient.getSignal(key);
         if (!signalData) continue;
-        const [channelId, assetSymbol, uuid] = key.split(":");
+        const [channelId, channelUUID, assetSymbol, uuid] = key.split(":");
         const channelIdNum = parseInt(channelId);
         const entryPrice = parseFloat(signalData.entry_price);
         const targetPrice = parseFloat(signalData.target_price);
@@ -895,6 +897,7 @@ var SignalMonitor = class {
           if (newStatus !== "active") {
             await this.closeSignalWithMetrics(
               uuid,
+              channelUUID,
               symbol,
               currentPrice,
               newStatus,
@@ -987,6 +990,7 @@ var SignalMonitor = class {
   }
   async closeSignalWithMetrics(
     uuid,
+    channelUUID,
     symbol,
     currentPrice,
     newStatus,
@@ -1035,7 +1039,7 @@ var SignalMonitor = class {
             uuid,
             trader_id: signalData.trader_id,
             channel_id: signalData.channel_id,
-            channel_uuid: signalData.channel_uuid,
+            channel_uuid: channelUUID,
             execution_price: currentPrice,
             closed_at: /* @__PURE__ */ new Date(),
             performance: performance.toFixed(2) + "%",
@@ -1077,9 +1081,6 @@ var SignalMonitor = class {
     return "neutral";
   }
 };
-
-// server/services/websocket-server.ts
-import { Server as SocketIOServer } from "socket.io";
 
 // shared/schema.ts
 import { z } from "zod";
@@ -1201,6 +1202,9 @@ var signalUpdateMessageSchema = z.object({
     }),
   ),
 });
+
+// server/services/websocket-server.ts
+import { Server as SocketIOServer } from "socket.io";
 
 // server/utils/jwt.ts
 import jwt from "jsonwebtoken";

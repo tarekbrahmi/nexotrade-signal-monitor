@@ -39,7 +39,7 @@ export class StartupSyncService {
         }
 
         // Check if signal exists in Redis
-        const redisKey = `${signal.channel_id}:${signal.asset_symbol}:${signal.uuid}`;
+        const redisKey = `${signal.channel_id}:${signal.channel_uuid}:${signal.asset_symbol}:${signal.uuid}`;
         const existingSignal = await this.redisClient.getSignal(redisKey);
 
         if (!existingSignal) {
@@ -55,6 +55,7 @@ export class StartupSyncService {
                 signal_type: signal.signal_type,
                 entry_price: signal.entry_price,
                 target_price: signal.target_price,
+                trader_id: signal.trader_id,
                 stop_loss_price: signal.stop_loss_price,
                 leverage: signal.leverage,
                 ttl: signal.ttl,
